@@ -7,7 +7,7 @@ import { latestNoteBubble } from "./notefeed.mjs";
 import { INCOME_SOURCE } from "./labels.mjs";
 import {
   C, text, box, sep, spacer, uri, postback, cta, ghost, linkBtn, eyebrow, badge, checkRow, dotRow, stepRow, panel,
-  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, imgUrl, clip, quickReply,
+  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, imgUrl, clip, quickReply, buttonCard,
 } from "./flex.mjs";
 
 const START = () => postback("30秒診断をスタート", "st", "30秒診断をスタート");
@@ -377,44 +377,37 @@ export function homeMessage(base) {
 }
 
 export function fallbackMessages(base) {
+  // 小さなボタン（クイックリプライ）ではなく、目立つメニューカードを添える
   return [
-    {
-      type: "text",
-      text: "メッセージを受け取りました。運営が内容を確認して、順次ご返信します。\n\n診断やメニューは、下のボタンからも使えます。",
-      quickReply: {
-        items: [
-          ["30秒転職診断", "st", "30秒転職診断"],
-          ["年収診断", "sal", "年収診断"],
-          ["キャンペーン", "camp", "キャンペーン詳細"],
-          ["転職体験記", "taiken", "転職体験記"],
-          ["管理人に相談", "contact", "管理人に相談"],
-          ["よくある質問", "faq", "よくある質問"],
-        ].map(([label, data, dt]) => ({ type: "action", action: postback(label, data, dt) })),
-      },
-    },
+    { type: "text", text: "メッセージを受け取りました。運営が内容を確認して、順次ご返信します。\n\n診断やメニューは、下のボタンからも使えます。" },
+    homeMessage(base),
   ];
 }
 
 // ------------------------------------------------------------------ 登録の意思ボタン／新着note配信
-/** 「登録した／まだ迷ってる／あとで登録する」を押したときの返信 */
+/** 「登録した／まだ迷ってる／あとで登録する」を押したときの返信（テキスト＋押しやすい大きなボタン） */
 export function regMessages(kind, stateStr) {
   const st = decode(stateStr);
   const tipsBtn = tipsData(keyOf(st), st.g);
-  const T = (t, items) => [{ type: "text", text: t, quickReply: quickReply(items) }];
+  const P = (label, data, dt = label) => postback(label, data, dt);
+  const T = (t, card, qr) => { card.quickReply = quickReply(qr); return [{ type: "text", text: t }, card]; };
   if (kind === "y") {
     return T(
       "登録おつかれさまです！\n最後に、登録完了画面のスクリーンショットを、このトークに送ってください。毎月の抽選（3名様に PayPay 500円分）に応募できます。\n\n※お名前・電話番号・メールアドレスが写る場合は、その部分を隠してお送りください。\n※登録・応募された方全員へのプレゼントではありません。",
-      [["登録・応募の流れ", "steps", "登録後の流れ"], ["キャンペーン詳細", "camp", "キャンペーン詳細"], ["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"]]
+      buttonCard({ eyebrowText: "NEXT STEP", title: "スクショを送ったら応募完了です", buttons: [["📷 登録・応募の流れを見る", P("登録・応募の流れ", "steps", "登録後の流れ"), "cta"], ["🎁 キャンペーン詳細", P("キャンペーン詳細", "camp"), "ghost"], ["🔁 診断結果をもう一度見る", P("結果をもう一度見る", `rs|${stateStr}`), "ghost"]] }),
+      [["登録・応募の流れ", "steps", "登録後の流れ"], ["キャンペーン詳細", "camp", "キャンペーン詳細"]]
     );
   }
   if (kind === "m") {
     return T(
       "迷うのは、自然なことです。\nまずは1社だけ、話を聞いてみる形でも大丈夫です。合わなければ、断ったり、やめたりしても構いません（利用は無料です）。\n\n気になる点があれば、下のボタンからどうぞ。",
-      [["よくある不安を見る", "faq", "よくある質問"], ["面談・選考のポイント", tipsBtn, "面談・選考のポイント"], ["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"], ["管理人に相談", "contact", "管理人に相談"]]
+      buttonCard({ eyebrowText: "NEXT STEP", title: "気になることは、どれですか？", buttons: [["❓ よくある不安（Q&A）を見る", P("よくある質問", "faq", "よくある質問"), "cta"], ["📋 面談・選考のポイントを見る", P("面談・選考のポイント", tipsBtn), "ghost"], ["🔁 診断結果をもう一度見る", P("結果をもう一度見る", `rs|${stateStr}`), "ghost"], ["💬 管理人に直接相談", P("管理人に相談", "contact"), "ghost"]] }),
+      [["よくある不安", "faq", "よくある質問"], ["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"]]
     );
   }
   return T(
-    "了解です。登録できたら、完了画面のスクリーンショットを送ってください。\nいつでも「結果」と送ると、診断結果と紹介リンクをもう一度お見せします。",
+    "了解です。登録できたら、完了画面のスクリーンショットを送ってください。\nいつでも、下のボタンから診断結果と紹介リンクをもう一度お見せします。",
+    buttonCard({ eyebrowText: "NEXT STEP", title: "登録の準備はここから", buttons: [["🔁 診断結果をもう一度見る", P("結果をもう一度見る", `rs|${stateStr}`), "cta"], ["📷 登録・応募の流れを見る", P("登録・応募の流れ", "steps", "登録後の流れ"), "ghost"], ["📋 面談・選考のポイントを見る", P("面談・選考のポイント", tipsBtn), "ghost"]] }),
     [["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"], ["登録・応募の流れ", "steps", "登録後の流れ"]]
   );
 }

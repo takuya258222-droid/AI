@@ -4,7 +4,7 @@ import { AGES } from "./labels.mjs";
 import { decide } from "./matcher.mjs";
 import {
   C, text, box, sep, spacer, uri, postback, cta, ghost, linkBtn, eyebrow, badge, stepRow, panel, bubble, heroImage, bodyBox, footerBox,
-  flexMessage, carousel, quickReply, imgUrl,
+  flexMessage, carousel, quickReply, imgUrl, buttonCard,
 } from "./flex.mjs";
 
 export const TIP_KEYS = Object.keys(tips.jobs);
@@ -138,14 +138,20 @@ export function tipsAgentsMessages(key, age, base) {
   if (res.status !== "ok" || !res.picks.length) return [];
   const msgs = [];
   if (res.notes.length) msgs.push({ type: "text", text: res.notes.join("\n") });
-  const m = flexMessage(`この職種・年代に合うエージェント：${res.picks.map((p) => p.service.name).join("／")}`, carousel(res.picks.map((p) => tipsAgentBubble(p, base))));
-  m.quickReply = quickReply([
-    ["30秒診断で絞り込む", "st", "30秒診断をスタート"],
-    ["別の職種・年代を見る", "tips", "別の職種・年代を見る"],
-    ["新着noteを受け取る", `subon|${key}`, "新着noteを受け取る"],
-    ["キャンペーン詳細", "camp", "キャンペーン詳細"],
-  ]);
-  msgs.push(m);
+  msgs.push(flexMessage(`この職種・年代に合うエージェント：${res.picks.map((p) => p.service.name).join("／")}`, carousel(res.picks.map((p) => tipsAgentBubble(p, base)))));
+  // カルーセルの下に、押しやすい大きなボタン
+  const next = buttonCard({
+    eyebrowText: "NEXT STEP",
+    title: "次は、どうしますか？",
+    buttons: [
+      ["🔎 30秒診断で、さらに絞り込む", postback("30秒診断をスタート", "st", "30秒診断をスタート"), "cta"],
+      ["📋 別の職種・年代を見る", postback("別の職種・年代を見る", "tips", "別の職種・年代を見る"), "ghost"],
+      ["📰 新着noteをLINEで受け取る", postback("新着noteを受け取る", `subon|${key}`, "新着noteを受け取る"), "ghost"],
+    ],
+    links: [["抽選キャンペーン", postback("キャンペーン詳細", "camp", "キャンペーン詳細")]],
+  });
+  next.quickReply = quickReply([["30秒診断で絞り込む", "st", "30秒診断をスタート"], ["別の職種・年代を見る", "tips", "別の職種・年代を見る"]]);
+  msgs.push(next);
   return msgs;
 }
 

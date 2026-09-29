@@ -94,6 +94,8 @@ console.log("\n[3] 診断を最後までタップ（看護師・30代・500〜70
 r = await send([postback("st")]);
 let pbs = postbacks(r.replies[0].body.messages);
 ok(pbs.some((p) => p.data === "d|j:med"), "Q1に医療・福祉の選択肢");
+/** 診断結果のうち、紹介リンク（サービス）のカルーセル */
+const svcCarousel = (msgs) => [...msgs].reverse().find((m) => m.contents?.type === "carousel" && JSON.stringify(m).includes("紹介リンク経由の登録で"));
 const pick = (msgs, label) => postbacks(msgs).find((p) => p.label === label)?.data;
 const path = ["医療・福祉", "看護師", "30〜34歳", "500〜700万円", "派遣で働きたい", "3か月以内に動きたい"];
 let last = r.replies[0].body;
@@ -104,7 +106,7 @@ for (const label of path) {
   last = r.replies[0].body;
   ok(sizeOk(last.messages), `  返信が上限内(${last.messages.length}件)`);
 }
-ok(last.messages.length === 4, "診断完了で4件返信（結果・サービス・登録案内・体験記）", String(last.messages.length));
+ok(last.messages.length === 5, "診断完了で5件返信（結果・体験記・登録案内・サービス・次のアクション）", String(last.messages.length));
 const res = JSON.stringify(last.messages);
 ok(res.includes("MC-ナースネット") && res.includes("ナースJJ"), "看護師の2社が表示される");
 ok(res.includes("r.8to.jp"), "アフィリエイトリンクが入っている");
@@ -112,9 +114,10 @@ ok(res.indexOf("MC-ナースネット") < res.indexOf("ナースJJ"), "派遣希
 ok(res.includes("年収ポジション") && res.includes("国税庁"), "年収ポジション（出典つき）が表示される");
 ok(res.includes("毎月抽選で3名様"), "抽選3名様の明記");
 ok(Boolean(last.messages.at(-1).quickReply?.items?.length), "診断結果の最後にショートカット（クイックリプライ）");
+ok(JSON.stringify(last.messages.at(-1)).includes("regy|") && JSON.stringify(last.messages.at(-1)).includes("登録した（スクショで応募）"), "最後は、登録した／迷っている／あとで、を押すだけの大きなボタンのカード");
 ok(res.includes("notes/n4d10dab114ec.jpg") || res.includes("notes/n7ff23e3fe450.jpg"), "看護師の体験記が添えられる");
 ok([...store._dump().keys()].some((k) => k === "d:Uuser1"), "フォロー配信の宛先が保存される");
-ok(JSON.stringify(last.messages.at(-1)).includes("r.8to.jp"), "紹介リンクのカードが、最後の吹き出しになっている");
+ok(JSON.stringify(svcCarousel(last.messages)).includes("r.8to.jp") && last.messages.indexOf(svcCarousel(last.messages)) === last.messages.length - 2, "紹介リンクのカードは、最後の1つ前（そのすぐ下に大きなボタンのカード）");
 
 console.log("\n[3b] 保存（KV）が失敗しても、診断結果は必ず届く");
 {
@@ -128,7 +131,7 @@ console.log("\n[3b] 保存（KV）が失敗しても、診断結果は必ず届�
     lastF = rr.replies[0].body;
   }
   const t = JSON.stringify(lastF.messages);
-  ok(lastF.messages.length === 4 && t.includes("r.8to.jp"), "KVが全部エラーでも、紹介リンク付きの結果が返る");
+  ok(lastF.messages.length === 5 && t.includes("r.8to.jp"), "KVが全部エラーでも、紹介リンク付きの結果が返る");
   env.__store = okStore;
 }
 
@@ -220,7 +223,7 @@ out = await runFollowups({ store, client, now: Date.UTC(2026, 9, 2, 15, 30, 0) }
 ok(out.skipped === "quiet-hours", "深夜は送らない");
 // 「rs|...」で結果が再表示できる
 r = await send([postback("rs|j:med,s:nurse,g:a30,i:i5,p:wl,t:m3")]);
-ok(r.replies[0].body.messages.length === 4, "保存した回答から結果を再表示");
+ok(r.replies[0].body.messages.length === 5, "保存した回答から結果を再表示");
 
 console.log("\n[11] 配信停止・ブロック・統計");
 await store.put("d:Uuser1", { state: "j:office,g:a25,i:i3,p:up,t:now", ts: T0, stage: 0 });
@@ -288,7 +291,7 @@ r = await send([asU("Utag", textEvt("30秒診断を始める【note1】看護師
 const q = JSON.stringify(r.replies[0].body.messages);
 ok(q.includes("年代を教えてください") && !q.includes("現在のお仕事は"), "看護師の入口は、職種の質問を飛ばして年代から開始");
 r = await send([asU("Utag", postback("d|j:med,s:nurse,g:a25,i:i4,p:up,t:now"))]);
-ok(r.replies[0].body.messages.length === 4, "診断完了");
+ok(r.replies[0].body.messages.length === 5, "診断完了");
 await send([asU("Utag", imageEvt("Utag"))]);
 const rep = await buildReport(store, 7, Date.now());
 ok(rep.includes("note1：1→1→1→1"), "経路別に クリック→開始→完了→スクショ が集計される");
@@ -413,7 +416,7 @@ console.log("\n[15] コンサル・M&Aの選択ボタン（ハイクラス）");
   let w = await walk("コンサル", ["コンサル", "25〜29歳", "500〜700万円", "年収アップ", "3か月以内に動きたい"]);
   ok(w && JSON.stringify(w.last.messages).includes("エリア"), "コンサル(25歳〜)ではエリア質問が挟まる（関西限定のsXars用）");
   w.rr = await send([postback(pick(w.last.messages, "関西（大阪・京都・兵庫など）") ?? pick(w.last.messages, w.last.messages.length ? postbacks(w.last.messages).find((p) => /関西/.test(p.label))?.label : ""))]);
-  let carousel = w.rr.replies[0].body.messages.at(-1);
+  let carousel = svcCarousel(w.rr.replies[0].body.messages);
   let names = carousel.contents.contents.map((b) => JSON.stringify(b)).join("");
   const cards = carousel.contents.contents.length - 1; // 最後はメニューカード
   ok(cards >= 3 && cards <= 4, `コンサル(関西)は${cards}社のリンクが届く`);
@@ -424,12 +427,12 @@ console.log("\n[15] コンサル・M&Aの選択ボタン（ハイクラス）");
   // コンサル・関東: sXarsは出ない
   w = await walk("コンサル", ["コンサル", "30〜34歳", "700万円〜", "キャリアアップ", "3か月以内に動きたい"]);
   w.rr = await send([postback(postbacks(w.last.messages).find((p) => /首都圏/.test(p.label))?.data ?? "")]);
-  carousel = w.rr.replies[0].body.messages.at(-1);
+  carousel = svcCarousel(w.rr.replies[0].body.messages);
   names = JSON.stringify(carousel.contents);
   ok(!names.includes("sXars") && names.includes("Groovement Agent") && carousel.contents.contents.length - 1 >= 3, "コンサル(関東)はsXarsを出さず、Groovementほか3社以上");
   // M&A: 20代 → NewMA・M&A BEGINNERS・ASSIGN ほか
   w = await walk("M&A・FAS", ["M&A・FAS", "25〜29歳", "400〜500万円", "年収アップ", "半年〜1年以内に検討"]);
-  carousel = w.rr.replies[0].body.messages.at(-1);
+  carousel = svcCarousel(w.rr.replies[0].body.messages);
   names = JSON.stringify(carousel.contents);
   const cardsMa = carousel.contents.contents.length - 1;
   ok(cardsMa >= 3 && cardsMa <= 4 && names.includes("NewMA") && names.includes("M&A BEGINNERS"), `M&A(20代)はNewMA・M&A BEGINNERSを含む${cardsMa}社`);
@@ -458,7 +461,7 @@ console.log("\n[16] 登録の意思ボタン・結果の再表示・面談ポイ
 
   // (a) 診断結果の下に、登録の意思ボタンと面談ポイント
   let rr = await send([postback(`d|${STATE}`)]);
-  const qr = JSON.stringify(rr.replies[0].body.messages.at(-1).quickReply);
+  const qr = JSON.stringify(rr.replies[0].body.messages.at(-1));
   ok(["regy|", "regm|", "regl|", "tips|nurse"].every((x) => qr.includes(x)), "診断結果に「登録した／まだ迷ってる／あとで登録する／面談・選考のポイント」ボタン");
   ok(rr.replies[0].body.messages.at(-1).quickReply.items.length <= 13, "クイックリプライは13個以内");
   const stBefore = (await store.get("d:Uuser1"))?.state;
@@ -476,9 +479,9 @@ console.log("\n[16] 登録の意思ボタン・結果の再表示・面談ポイ
 
   // (c) 結果の再表示
   rr = await send([textEvt("結果")]);
-  ok(rr.replies[0].body.messages.length === 4 && JSON.stringify(rr.replies[0].body.messages).includes("r.8to.jp"), "「結果」と送ると、診断結果と紹介リンクを再表示");
+  ok(rr.replies[0].body.messages.length === 5 && JSON.stringify(rr.replies[0].body.messages).includes("r.8to.jp"), "「結果」と送ると、診断結果と紹介リンクを再表示");
   rr = await send([postback("myres")]);
-  ok(rr.replies[0].body.messages.length === 4, "メニューの「診断結果をもう一度見る」でも再表示");
+  ok(rr.replies[0].body.messages.length === 5, "メニューの「診断結果をもう一度見る」でも再表示");
   await store.delete("d:Uuser1");
   rr = await send([textEvt("診断結果を見たい")]);
   ok(JSON.stringify(rr.replies[0].body.messages).includes("記録が見つかりません") && JSON.stringify(rr.replies[0].body.messages).includes("STEP 1"), "記録が無いときは、もう一度診断を案内");
@@ -492,10 +495,10 @@ console.log("\n[16] 登録の意思ボタン・結果の再表示・面談ポイ
   let tj = JSON.stringify(rr.replies[0].body.messages);
   ok(tj.includes("看護師（30〜34歳）：面談・面接で確認したい5つ") && tj.includes("30代前半は"), "看護師×30代: 5つのポイントと、30代の傾向");
   ok(tj.includes("MC-ナースネット") && tj.includes("ナースJJ") && !tj.includes("ASSIGN"), "看護師には看護の専門エージェント（ASSIGNは出さない）");
-  ok(rr.replies[0].body.messages.at(-1).quickReply && rr.replies[0].body.messages.length === 2, "ポイントの次にエージェントのカード（クイックリプライつき）");
+  ok(rr.replies[0].body.messages.length === 3 && JSON.stringify(rr.replies[0].body.messages.at(-1)).includes("30秒診断で、さらに絞り込む"), "ポイント→エージェントのカード→大きなボタンのカード");
   rr = await send([postback("tips|bizsales.a25")]);
   tj = JSON.stringify(rr.replies[0].body.messages);
-  const bizCards = rr.replies[0].body.messages.at(-1).contents.contents;
+  const bizCards = svcCarousel(rr.replies[0].body.messages).contents.contents;
   ok(JSON.stringify(bizCards[0]).includes("ASSIGN") && JSON.stringify(bizCards[0]).includes("いちばんのおすすめ"), "営業×20代後半: ASSIGNが先頭（いちばんのおすすめ）");
   ok(tj.includes("面接対策など選考サポートを重視") && tj.includes("選考のサポート"), "選考サポートの記載があるサービスは、その内容を表示");
   ok(tj.includes("20代後半は") && tj.includes("r.8to.jp"), "20代後半の傾向と、紹介リンクが出る");

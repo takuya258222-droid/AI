@@ -108,9 +108,9 @@ while (queue.length) {
   }
   const msgs = resultMessages(a, BASE);
   checkReply(msgs, `result ${key}`);
-  const last = JSON.stringify(msgs[msgs.length - 1]);
-  if (!/r\.8to\.jp|https:\/\//.test(last) || msgs[msgs.length - 1].contents?.type !== "carousel") bad(`result ${key}`, "紹介リンクのカードが最後にない");
-  if (!msgs[msgs.length - 1].quickReply) bad(`result ${key}`, "最後の吹き出しにクイックリプライがない");
+  const svc = msgs.at(-2); // 紹介リンクのカードは最後の1つ前。最後は、登録の意思などの大きなボタンのカード
+  if (!/https:\/\//.test(JSON.stringify(svc)) || svc.contents?.type !== "carousel" || !JSON.stringify(svc).includes("紹介リンク経由の登録で")) bad(`result ${key}`, "紹介リンクのカードが最後の1つ前にない");
+  if (!JSON.stringify(msgs.at(-1)).includes("regy|") || !msgs.at(-1).quickReply) bad(`result ${key}`, "最後に、登録の意思ボタンのカード（と、クイックリプライ）がない");
   const fb = resultFallbackMessages(a);
   if (!fb) bad(`result ${key}`, "文字だけの代替が作れない");
   else { checkReply(fb, `fallback ${key}`); for (const p of res.picks) if (!fb[0].text.includes(p.service.url)) bad(`fallback ${key}`, `代替に紹介URLがない ${p.service.id}`); }

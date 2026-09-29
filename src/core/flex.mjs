@@ -56,6 +56,24 @@ export function ghost(label, action, o = {}) {
 /** テキストリンク風の小さなボタン */
 export const linkBtn = (label, action) => ({ type: "button", style: "link", height: "sm", color: C.goldDeep, action: { ...action, label: clip(label, 20) } });
 
+/**
+ * 大きなタップボタンだけのカード（クイックリプライより目立つ）。
+ * buttons: [[ラベル, アクション, "cta"|"ghost"]]、links: 下に並べる小さなリンク [[ラベル, アクション]]
+ */
+export function buttonCard({ eyebrowText, title, sub, buttons, links = [], alt }) {
+  const rows = buttons.flatMap(([label, action, kind], i) => [i ? spacerPx("6px") : null, kind === "cta" ? cta(label, action) : ghost(label, action)].filter(Boolean));
+  const body = [
+    ...(eyebrowText ? [eyebrow(eyebrowText)] : []),
+    text(title, { size: "lg", weight: "bold", color: C.navy, margin: "sm" }),
+    ...(sub ? [text(sub, { size: "xs", color: C.muted, margin: "xs" })] : []),
+    spacerPx("10px"),
+    ...rows,
+    ...(links.length ? [box("horizontal", links.map(([l, a]) => linkBtn(l, a)), { margin: "md" })] : []),
+  ];
+  return flexMessage(alt ?? title, bubble({ body: bodyBox(body, { paddingAll: "16px" }) }));
+}
+const spacerPx = (h) => box("vertical", [], { height: h });
+
 // ---- 部品 ----
 /** 小さなラベル（ゴールド） */
 export const eyebrow = (t) => text(t, { size: "xxs", weight: "bold", color: C.goldDeep });

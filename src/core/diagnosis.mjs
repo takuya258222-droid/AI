@@ -8,7 +8,7 @@ import { encode, makeData, nextKey, stepNumber, previous } from "./state.mjs";
 import { brand, notes, getNote } from "./content.mjs";
 import {
   C, text, box, sep, spacer, uri, postback, cta, ghost, linkBtn, eyebrow, badge, checkRow, dotRow, stepRow, kv, panel,
-  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, progress, histogram, imgUrl, quickReply,
+  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, progress, histogram, imgUrl, quickReply, buttonCard,
 } from "./flex.mjs";
 import { entryCard } from "./messages.mjs";
 import { tipsData } from "./tips.mjs";
@@ -293,23 +293,34 @@ export function resultMessages(a, base) {
 
   const cards = res.picks.map((p) => serviceBubble(p, a, base));
   cards.push(menuBubble());
-  // 並び：診断結果 → 同じ職種の体験記 → 登録案内 → 紹介リンクのカード（最後）
+  // 並び：診断結果 → 同じ職種の体験記 → 登録案内 → 紹介リンクのカード → 次のアクション（大きなボタン）
   const msgs = [flexMessage("診断結果：あなたに合う転職サービスはこちら", summaryBubble(a, res, base))];
   const rel = relatedNotesMessage(a, res.key, base);
   if (rel) msgs.push(rel);
   msgs.push(entryCard(a, base));
   msgs.push(flexMessage("あなたに合う転職サービスはこちら（" + res.picks.map((p) => p.service.name).join("／") + "）", carousel(cards)));
-  // 最後の吹き出し（紹介リンク）の下に、登録の意思を伝えるボタンと、次の行動へのショートカットを表示
+  // 紹介リンクの下に、押すだけで進める大きなボタンのカード（登録の意思・面談ポイント・キャンペーン）
   const st = encode(a);
-  msgs[msgs.length - 1].quickReply = quickReply([
+  const action = buttonCard({
+    eyebrowText: "NEXT STEP",
+    title: "登録はお済みですか？",
+    sub: "押すだけでOK。状況に合わせて、次の案内をお出しします。",
+    buttons: [
+      ["✅ 登録した（スクショで応募）", postback("登録した", `regy|${st}`, "登録した"), "cta"],
+      ["🤔 まだ迷っている", postback("まだ迷ってる", `regm|${st}`, "まだ迷ってる"), "ghost"],
+      ["⏳ あとで登録する", postback("あとで登録する", `regl|${st}`, "あとで登録する"), "ghost"],
+      ["📋 面談・選考のポイントを見る", postback("面談・選考のポイント", tipsData(res.key, a.g), "面談・選考のポイント"), "ghost"],
+    ],
+    links: [["抽選キャンペーン", postback("キャンペーン詳細", "camp", "キャンペーン詳細")], ["診断をやり直す", postback("診断をやり直す", "st", "診断をやり直す")]],
+    alt: "登録はお済みですか？ ボタンを押すだけで、次の案内が出ます",
+  });
+  action.quickReply = quickReply([
     ["登録した", `regy|${st}`, "登録した"],
     ["まだ迷ってる", `regm|${st}`, "まだ迷ってる"],
-    ["あとで登録する", `regl|${st}`, "あとで登録する"],
     ["面談・選考のポイント", tipsData(res.key, a.g), "面談・選考のポイント"],
-    ["キャンペーン詳細", "camp", "キャンペーン詳細"],
     ["年収診断", "sal", "年収診断"],
-    ["診断をやり直す", "st", "診断をやり直す"],
   ]);
+  msgs.push(action);
   return msgs;
 }
 

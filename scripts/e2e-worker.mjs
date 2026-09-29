@@ -68,7 +68,7 @@ try {
   const seq = ["st", "d|j:it,s:it_sr,g:a30,i:i7,p:up,t:m3"];
   for (const d of seq) h = await hook([{ type: "postback", replyToken: "r2", source: src, postback: { data: d } }]);
   const out = JSON.stringify(h.replies[0].body.messages);
-  ok(h.replies[0].body.messages.length === 4 && out.includes("TechGo"), "診断完了（IT経験者→TechGo）で4件返信");
+  ok(h.replies[0].body.messages.length === 5 && out.includes("TechGo"), "診断完了（IT経験者→TechGo）で5件返信");
 
   h = await hook([{ type: "message", replyToken: "r3", source: src, message: { type: "image", id: "1" } }]);
   ok(JSON.stringify(h.replies[0]?.body.messages).includes("スクリーンショットを受け取りました"), "スクショ受信の自動返信");

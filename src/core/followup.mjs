@@ -6,7 +6,7 @@ import { keyOf } from "./matcher.mjs";
 import { tipsData } from "./tips.mjs";
 import { jstHour, jstDate } from "./stats.mjs";
 import {
-  C, text, spacer, sep, postback, cta, ghost, linkBtn, eyebrow, bubble, bodyBox, footerBox, flexMessage, quickReply, panel, stepRow,
+  C, text, box, spacer, sep, postback, cta, ghost, linkBtn, eyebrow, bubble, bodyBox, footerBox, flexMessage, quickReply, panel, stepRow,
 } from "./flex.mjs";
 
 const HOUR = 3600 * 1000;
@@ -34,6 +34,12 @@ export async function stopAll(store, userId) {
   await store.delete(`sub:${userId}`);
 }
 
+/** 「登録した」「まだ迷ってる」を、カードの中に大きなボタンで並べる */
+const intentRow = (stateStr) => box("horizontal", [
+  ghost("登録した", postback("登録した", `regy|${stateStr}`, "登録した"), { size: "sm", padding: "10px" }),
+  ghost("まだ迷ってる", postback("まだ迷ってる", `regm|${stateStr}`, "まだ迷ってる"), { size: "sm", padding: "10px" }),
+], { spacing: "sm", margin: "sm" });
+
 /** 診断結果を見直す・登録の意思を伝えるボタン（フォロー・リマインドの下に表示） */
 const quick = (stateStr) => quickReply([
   ["登録した", `regy|${stateStr}`, "登録した"],
@@ -52,7 +58,7 @@ export function followupMessage(stage, stateStr) {
         text("昨日の診断、いかがでしたか？", { size: "lg", weight: "bold", color: C.navy, margin: "sm" }),
         text("気になるサービスがあれば、まず1社だけ登録して、面談で話を聞いてみるのがおすすめです。診断結果は、ボタンからもう一度ご覧いただけます。", { size: "sm", margin: "md" }),
       ]),
-      footer: footerBox([cta("診断結果をもう一度見る", again), linkBtn("転職体験記を読む", postback("転職体験記", "taiken", "転職体験記")), stop]),
+      footer: footerBox([cta("診断結果をもう一度見る", again), intentRow(stateStr), linkBtn("転職体験記を読む", postback("転職体験記", "taiken", "転職体験記")), stop]),
     });
     msg = flexMessage("昨日の診断結果を、もう一度ご覧いただけます", b);
   } else if (stage === 1) {
@@ -63,7 +69,7 @@ export function followupMessage(stage, stateStr) {
         text("登録完了画面のスクリーンショットをこのトークに送ると、毎月抽選（3名様）のキャンペーンに応募できます。", { size: "sm", margin: "md" }),
         text("※登録された方全員へのプレゼントではありません。", { size: "xxs", color: C.muted, margin: "sm" }),
       ]),
-      footer: footerBox([cta("診断結果をもう一度見る", again), ghost("キャンペーン詳細", postback("キャンペーン", "camp", "キャンペーン詳細"), { size: "xs", padding: "9px" }), stop]),
+      footer: footerBox([cta("診断結果をもう一度見る", again), intentRow(stateStr), ghost("キャンペーン詳細", postback("キャンペーン", "camp", "キャンペーン詳細"), { size: "xs", padding: "9px" }), stop]),
     });
     msg = flexMessage("登録はお済みですか？ スクショを送ると抽選に応募できます", b);
   } else {
@@ -78,7 +84,7 @@ export function followupMessage(stage, stateStr) {
         stepRow(3, "2〜3社を比べる", "1社に絞らず、比べてから決めるのがおすすめです"),
         text("合わなければ、断ったり、やめたりして大丈夫です。", { size: "xs", color: C.muted, margin: "md" }),
       ]),
-      footer: footerBox([cta("診断結果をもう一度見る", again), linkBtn("面談・選考のポイントを見る", tipsBtn), stop]),
+      footer: footerBox([cta("診断結果をもう一度見る", again), intentRow(stateStr), linkBtn("面談・選考のポイントを見る", tipsBtn), stop]),
     });
     msg = flexMessage("迷っている方へ：サービスを選ぶときの3つの目安", b);
   }
@@ -98,6 +104,7 @@ export function remindMessage(daysLeft, stateStr) {
     ]),
     footer: footerBox([
       cta("診断結果をもう一度見る", postback("診断結果をもう一度見る", `rs|${stateStr}`, "診断結果をもう一度見る")),
+      intentRow(stateStr),
       ghost("応募のルール・キャンペーン詳細", postback("キャンペーン", "camp", "キャンペーン詳細"), { size: "xs", padding: "9px" }),
       text(`配信を止める場合は「${brand.followup.stopKeyword}」と送信してください。`, { size: "xxs", color: C.muted, align: "center", margin: "sm" }),
     ]),
