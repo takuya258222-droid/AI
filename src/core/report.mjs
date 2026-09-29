@@ -1,20 +1,15 @@
 // 運営者向けレポート（「統計」コマンドと、毎週月曜の自動送信で共有）
-import { jstDate, jstHour, tagTotals, jobTotals } from "./stats.mjs";
+import { jstDate, jstHour, tagTotals, jobTotals, counterTotals } from "./stats.mjs";
 import { poolFor, monthOf } from "./lottery.mjs";
 
 const DAY = 24 * 3600 * 1000;
 const JOB_LABEL = { nurse: "看護師", care: "介護職", pharm: "薬剤師", child: "保育士", medother: "医療・福祉その他", it_none: "IT未経験", it_jr: "IT経験3年未満", it_sr: "IT経験3年以上", it_free: "IT・フリーランス", bizsales: "営業", retail: "販売・接客", office: "事務・管理", mfg: "製造", eng: "技術職", const: "建築・施工・設備", logi: "物流・ドライバー", gen: "その他", dis: "障がい者雇用" };
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "―");
 
-async function sum(store, name, days, now) {
-  let n = 0;
-  for (let i = 0; i < days; i++) n += (await store.get(`s:${jstDate(now - i * DAY)}:${name}`))?.n ?? 0;
-  return n;
-}
-
 export async function buildReport(store, days = 7, now = Date.now(), { weekly = false } = {}) {
   if (!store) return "集計を使うには、Cloudflare KV（STORE）の設定が必要です。";
-  const [follow, start, done, shot] = await Promise.all(["follow", "start", "done", "shot"].map((m) => sum(store, m, days, now)));
+  const ct = await counterTotals(store, days, now);
+  const { follow = 0, start = 0, done = 0, shot = 0 } = ct;
   const tags = await tagTotals(store, days, now);
   const jobs = await jobTotals(store, days, now);
   const pool = await poolFor(store, monthOf(now));

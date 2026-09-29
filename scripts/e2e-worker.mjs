@@ -41,6 +41,12 @@ async function hook(events) {
   const raw = JSON.stringify({ destination: "U0", events });
   calls.length = 0;
   const r = await fetch(url("/webhook"), { method: "POST", headers: { "x-line-signature": sign(raw), "content-type": "application/json" }, body: raw });
+  // 200は即返り、返信は waitUntil で非同期に送られる。返信が出揃う（一定時間増えない）まで待つ
+  let last = -1, still = 0;
+  for (let i = 0; i < 80 && still < 6; i++) {
+    await new Promise((res) => setTimeout(res, 50));
+    if (calls.length === last) still++; else { last = calls.length; still = 0; }
+  }
   return { status: r.status, replies: calls.filter((c) => c.path === "/v2/bot/message/reply") };
 }
 const src = { type: "user", userId: "Ue2e" };

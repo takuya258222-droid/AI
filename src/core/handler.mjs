@@ -2,7 +2,7 @@
 import { brand } from "./content.mjs";
 import { decode, parseData, nextKey } from "./state.mjs";
 import { decide } from "./matcher.mjs";
-import { questionMessage, nextQuestion, resultMessages, salaryAskMessage, salaryResultMessage } from "./diagnosis.mjs";
+import { questionMessage, nextQuestion, resultMessages, resultFallbackMessages, salaryAskMessage, salaryResultMessage } from "./diagnosis.mjs";
 import {
   welcomeMessages, campaignMessage, stepsMessage, receiptMessages, taikenMessage, knowledgeMessage, faqMenuMessage, faqAnswerMessage,
   aboutMessage, policyMessage, privacyMessage, homeMessage, fallbackMessages,
@@ -10,7 +10,7 @@ import {
 import { recordDiagnosis, stopFollowup } from "./followup.mjs";
 import { netAskMessage, netResultMessage, prepSheetMessage, planAskMessage, planResultMessage, shareMessage, consultMessage } from "./tools.mjs";
 import { recordEntry, adminCommand } from "./lottery.mjs";
-import { bump, bumpTag } from "./stats.mjs";
+import { statsBatch } from "./stats.mjs";
 import { buildReport } from "./report.mjs";
 import { softStore } from "./store.mjs";
 
@@ -18,11 +18,11 @@ const text = (t) => ({ type: "text", text: t });
 const PRESETS = [[/看護/, { j: "med", s: "nurse" }], [/介護/, { j: "med", s: "care" }], [/薬剤/, { j: "med", s: "pharm" }], [/保育/, { j: "med", s: "child" }], [/エンジニア|\bit\b/i, { j: "it" }], [/営業/, { j: "sales", s: "bizsales" }], [/製造|工場/, { j: "tech", s: "mfg" }]];
 const TAG_RE = /【([A-Za-z0-9_-]{1,24})】/;
 /** 流入経路つきの入口から診断を始める（職種が分かれば、その質問を飛ばす） */
-async function startFromTag(ctx, userId, tag, raw, now) {
-  const { store, base } = ctx;
-  await bumpTag(store, tag, "start", now);
+async function startFromTag(ctx, userId, tag, raw) {
+  const { store, base, stats } = ctx;
+  stats.addTag(tag, "start");
   if (store && userId && !(await store.get(`u:${userId}`))) await store.put(`u:${userId}`, { tag }, 60 * 24 * 3600);
-  await bump(store, "start", now);
+  stats.add("start");
   const preset = PRESETS.find(([re]) => re.test(raw))?.[1] ?? {};
   return [text("ご相談ありがとうございます。30秒診断を始めます。"), nextQuestion(preset, base)];
 }
@@ -63,12 +63,12 @@ function route(action, arg, ctx) {
       if (key) return { messages: [questionMessage(key, a, base)] };
       const res = decide(a);
       if (res.status === "need_area") return { messages: [questionMessage("r", a, base)] };
-      return { messages: resultMessages(a, base), evt: "done", record: a, key: res.key, picks: res.picks.map((p) => p.service.id) };
+      return { messages: resultMessages(a, base), alt: resultFallbackMessages(a), evt: "done", record: a, key: res.key, picks: res.picks.map((p) => p.service.id) };
     }
     case "b": return { messages: [nextQuestion(a, base) ?? questionMessage("j", {}, base)] };
     case "rs": {
       const res = decide(a);
-      return { messages: res.status === "ok" ? resultMessages(a, base) : [questionMessage("r", a, base)] };
+      return { messages: res.status === "ok" ? resultMessages(a, base) : [questionMessage("r", a, base)], alt: res.status === "ok" ? resultFallbackMessages(a) : undefined };
     }
     case "sal": return { messages: [a.i && a.i !== "ix" ? salaryResultMessage(a.i, base) : salaryAskMessage(base)] };
     case "camp": return { messages: [campaignMessage(base)] };
@@ -80,7 +80,7 @@ function route(action, arg, ctx) {
     case "policy": return { messages: [policyMessage(base)] };
     case "privacy": return { messages: [privacyMessage(base)] };
     case "contact": return { messages: [consultMessage(base)] };
-    case "net": return { messages: [a.i ? netResultMessage(a.i, base) : netAskMessage(base)] };
+    case "net": return { messages: [a.i && a.i !== "ix" ? netResultMessage(a.i, base) : netAskMessage(base)] };
     case "plan": return { messages: [a.t ? planResultMessage(a.t) : planAskMessage()] };
     case "prep": return { messages: [prepSheetMessage(base)] };
     case "share": return { messages: [shareMessage()] };
@@ -89,14 +89,19 @@ function route(action, arg, ctx) {
   }
 }
 
-async function safeReply(ctx, replyToken, messages) {
+async function safeReply(ctx, replyToken, messages, alt) {
+  if (!replyToken) return;
   try {
     await ctx.client.reply(replyToken, messages);
     console.log(JSON.stringify({ evt: "reply_ok", n: messages.length }));
   } catch (e) {
-    console.log(JSON.stringify({ evt: "reply_error", status: e.status, body: JSON.stringify(e.body ?? "").slice(0, 300) }));
-    if (e.status === 400) {
-      try { await ctx.client.reply(replyToken, [text("申し訳ありません、表示に失敗しました。もう一度お試しください。")]); } catch { /* 無視 */ }
+    console.log(JSON.stringify({ evt: "reply_error", status: e.status, body: JSON.stringify(e.body ?? String(e)).slice(0, 300) }));
+    // 返信トークンが無効（使用済み・期限切れ）なら、二重送信になるので何もしない
+    if (e.status !== 400 || /reply token/i.test(JSON.stringify(e.body ?? ""))) return;
+    // 表示（Flex）に失敗した場合は、文字だけの版（紹介リンク入り）で確実に届ける
+    for (const fb of [alt, [text("申し訳ありません、表示に失敗しました。「診断」と送ると、もう一度やり直せます。")]]) {
+      if (!fb) continue;
+      try { await ctx.client.reply(replyToken, fb); console.log(JSON.stringify({ evt: "reply_fallback_ok" })); return; } catch { /* 次へ */ }
     }
   }
 }
@@ -116,65 +121,83 @@ async function notifyAdmin(ctx, userId, raw) {
 }
 
 export async function handleEvent(event, rawCtx) {
-  // 保存（KV）が一時的に失敗しても、診断結果の返信は必ず送る
-  const ctx = { ...rawCtx, store: softStore(rawCtx.store) };
-  const { client, store, env } = ctx;
-  const now = ctx.now ?? Date.now();
+  const now = rawCtx.now ?? Date.now();
+  // 保存（KV）が一時的に失敗しても、返信は必ず送る。集計は1イベント1回の書き込みにまとめる
+  const store = softStore(rawCtx.store);
+  const stats = statsBatch(store, now);
+  const ctx = { ...rawCtx, store, stats };
+  try {
+    return await dispatch(event, ctx, rawCtx);
+  } catch (e) {
+    console.log(JSON.stringify({ evt: "dispatch_error", type: event?.type, msg: String(e).slice(0, 200) }));
+    if (event?.replyToken) await safeReply(ctx, event.replyToken, [text("申し訳ありません、うまく処理できませんでした。「診断」と送ると、もう一度はじめからできます。")]);
+  } finally {
+    await stats.flush();
+  }
+}
+
+async function dispatch(event, ctx, rawCtx) {
+  const { client, store, env, stats, now = Date.now() } = ctx;
   const userId = event.source?.userId;
 
   switch (event.type) {
     case "follow": {
       let name;
       try { name = (await client.profile(userId)).displayName; } catch { /* 取得できなくてもOK */ }
-      await bump(store, "follow", now);
+      stats.add("follow");
       return safeReply(ctx, event.replyToken, welcomeMessages(ctx.base, name, { returning: event.follow?.isUnblocked === true }));
     }
     case "unfollow":
       return stopFollowup(store, userId);
     case "postback": {
       const { action, arg } = parseData(event.postback?.data);
-      const r = route(action, arg, ctx);
+      let r;
+      try { r = route(action, arg, ctx); } catch (e) {
+        console.log(JSON.stringify({ evt: "route_error", action, msg: String(e).slice(0, 200) }));
+        r = { messages: fallbackMessages(ctx.base) };
+      }
       // 先に返信（診断結果・紹介リンクを確実に届ける）。集計・保存はそのあと
-      const sent = await safeReply(ctx, event.replyToken, r.messages);
-      try {
-        if (r.evt) await bump(store, r.evt, now);
-        if (r.record) {
-          await bump(store, `job_${r.key}`, now);
-          await bumpTag(store, await sourceOf(store, userId), "done", now);
-          await recordDiagnosis(store, userId, r.record, now);
-          console.log(JSON.stringify({ evt: "diag_done", key: r.key, picks: r.picks, priority: r.record.p }));
-        }
-      } catch (e) { console.log(JSON.stringify({ evt: "post_reply_error", msg: String(e).slice(0, 160) })); }
-      return sent;
+      await safeReply(ctx, event.replyToken, r.messages, r.alt);
+      if (r.evt) stats.add(r.evt);
+      if (r.record) {
+        stats.add(`job_${r.key}`);
+        stats.addTag(await sourceOf(store, userId), "done");
+        await recordDiagnosis(store, userId, r.record, now);
+        console.log(JSON.stringify({ evt: "diag_done", key: r.key, picks: r.picks, priority: r.record.p }));
+      }
+      return;
     }
     case "message": {
-      const m = event.message;
+      const m = event.message ?? {};
       if (m.type === "image") {
-        await bump(store, "shot", now);
+        await safeReply(ctx, event.replyToken, receiptMessages(ctx.base));
+        stats.add("shot");
         await recordEntry(store, userId, now);
-        await bumpTag(store, await sourceOf(store, userId), "shot", now);
+        stats.addTag(await sourceOf(store, userId), "shot");
         await stopFollowup(store, userId); // 応募済みの方へのフォローは停止
         if (env.ADMIN_USER_ID) {
           try { await client.push(env.ADMIN_USER_ID, [text("📥 キャンペーンのスクショが届きました。トークをご確認ください。")]); } catch { /* 通知は任意 */ }
         }
-        return safeReply(ctx, event.replyToken, receiptMessages(ctx.base));
+        return;
       }
-      if (m.type !== "text") return safeReply(ctx, event.replyToken, fallbackMessages(ctx.base));
+      if (m.type !== "text" || typeof m.text !== "string") return safeReply(ctx, event.replyToken, fallbackMessages(ctx.base));
 
       const raw = m.text.trim();
       const t = norm(raw);
-      if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID && /^(統計|stats)(30)?$/.test(t)) {
-        return safeReply(ctx, event.replyToken, [text(await buildReport(store, t.endsWith("30") ? 30 : 7, now))]);
+      const isAdmin = Boolean(env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID);
+      if (isAdmin && /^(統計|stats)(30)?$/.test(t)) {
+        return safeReply(ctx, event.replyToken, [text(await buildReport(rawCtx.store, t.endsWith("30") ? 30 : 7, now).catch((e) => `集計を読み込めませんでした：${String(e).slice(0, 80)}`))]);
       }
-      if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID && /^経路(リンク)?$/.test(t)) {
+      if (isAdmin && /^経路(リンク)?$/.test(t)) {
         return safeReply(ctx, event.replyToken, [text(`流入経路つきのリンク\n${ctx.base}/l/経路名\n職種つき：${ctx.base}/l/経路名?job=nurse\n（job：nurse / care / pharm / child / it / sales / mfg）\n\n例）noteの記事1 → ${ctx.base}/l/note1\n例）Threadsのプロフィール → ${ctx.base}/l/threads\n※経路名は英数字・ハイフン・アンダースコア（24字まで）`)]);
       }
-      if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID) {
-        const out = await adminCommand(t, { store: rawCtx.store, client, now });
+      if (isAdmin) {
+        let out = null;
+        try { out = await adminCommand(t, { store: rawCtx.store, client, now }); } catch (e) { out = `運営者コマンドでエラーが起きました：${String(e).slice(0, 120)}\n（Cloudflare KVの上限やエラーの可能性があります）`; }
         if (out) return safeReply(ctx, event.replyToken, [text(out)]);
       }
       const tagMatch = raw.match(TAG_RE);
-      if (tagMatch) return safeReply(ctx, event.replyToken, await startFromTag(ctx, userId, tagMatch[1], raw, now));
+      if (tagMatch) return safeReply(ctx, event.replyToken, await startFromTag(ctx, userId, tagMatch[1], raw));
       if (t === norm(brand.followup.stopKeyword)) {
         await stopFollowup(store, userId);
         return safeReply(ctx, event.replyToken, [text("フォローのメッセージの配信を停止し、保存していた情報を削除しました。\nまた診断したくなったら、いつでもメニューからどうぞ。")]);
@@ -184,8 +207,12 @@ export async function handleEvent(event, rawCtx) {
         await notifyAdmin(ctx, userId, raw);
         return safeReply(ctx, event.replyToken, fallbackMessages(ctx.base));
       }
-      const r = route(hit[1], "", ctx);
-      if (r.evt) await bump(store, r.evt, now);
+      let r;
+      try { r = route(hit[1], "", ctx); } catch (e) {
+        console.log(JSON.stringify({ evt: "route_error", action: hit[1], msg: String(e).slice(0, 200) }));
+        r = { messages: fallbackMessages(ctx.base) };
+      }
+      if (r.evt) stats.add(r.evt);
       return safeReply(ctx, event.replyToken, r.messages);
     }
     default:

@@ -31,17 +31,34 @@ export function makeClient(env) {
   const base = env.LINE_API_BASE || "https://api.line.me";
   const token = env.LINE_CHANNEL_ACCESS_TOKEN;
 
-  async function call(method, path, body) {
-    const res = await fetch(base + path, {
-      method,
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const raw = await res.text();
-    let data = raw;
-    try { data = raw ? JSON.parse(raw) : {}; } catch { /* 非JSON */ }
-    if (!res.ok) throw new LineError(res.status, data, `${method} ${path}`);
-    return data;
+  // タイムアウト(8秒)と、一時的なエラー(429/5xx/通信エラー)の1回だけの再試行つき
+  async function call(method, path, body, { retry = true } = {}) {
+    let lastErr;
+    for (let attempt = 0; attempt < (retry ? 2 : 1); attempt++) {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 8000);
+      try {
+        const res = await fetch(base + path, {
+          method,
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: body ? JSON.stringify(body) : undefined,
+          signal: ctl.signal,
+        });
+        const raw = await res.text();
+        let data = raw;
+        try { data = raw ? JSON.parse(raw) : {}; } catch { /* 非JSON */ }
+        if (res.ok) return data;
+        lastErr = new LineError(res.status, data, `${method} ${path}`);
+        if (!(res.status === 429 || res.status >= 500)) throw lastErr; // 4xxはやり直しても同じ
+      } catch (e) {
+        if (e instanceof LineError && !(e.status === 429 || e.status >= 500)) throw e;
+        lastErr = e instanceof LineError ? e : new LineError(0, String(e), `${method} ${path} (network/timeout)`);
+      } finally {
+        clearTimeout(timer);
+      }
+      if (attempt === 0 && retry) await new Promise((r) => setTimeout(r, 300));
+    }
+    throw lastErr;
   }
 
   return {

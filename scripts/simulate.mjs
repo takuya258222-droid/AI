@@ -302,6 +302,81 @@ r = await send([postback("unknown-action")]);
 ok(r.replies.length === 1, "未知のpostbackでも落ちずに応答");
 r = await send([postback("d|j:hacker,s:zzz,g:a99")]);
 ok(r.status === 200, "改ざんされたstateでも落ちない");
+for (const d of ["net|i:ix", "sal|i:ix", "net|i:zzz", "sal|i:zzz", "plan|t:now", "plan|t:zzz", "faq|nope", "b|zzz", "rs|j:zzz", "d|j:med,s:nurse,g:zz"]) {
+  r = await send([postback(d)]);
+  ok(r.status === 200 && r.replies.length === 1 && !JSON.stringify(r.replies[0].body.messages).includes("エラー"), `不正・改ざんpostback「${d}」でも普通に案内が返る`);
+}
+
+console.log("\n[13] 応答の速さ（本番で起きた『最終ステップだけ返信が届かない』の再発防止）");
+{
+  // (a) ctx.waitUntil がある環境では 200 を即返し、返信は waitUntil の中で最後まで送られる
+  const pending = [];
+  const ctx = { waitUntil: (p) => pending.push(p) };
+  const okStore = env.__store;
+  const slow = (ms) => new Promise((r) => setTimeout(r, ms));
+  const base = memoryStore();
+  // 保存が遅いKV（1回500ms）でも、返信は保存より先に出る
+  env.__store = { async get(k) { await slow(500); return base.get(k); }, async put(k, v, o) { await slow(500); return base.put(k, v, o); }, async delete(k) { return base.delete(k); }, async list(o) { return base.list(o); } };
+  const done = "d|j:it,s:it_sr,g:a30,i:i7,p:up,t:m3";
+  const raw = JSON.stringify({ destination: "U0", events: [postback(done)] });
+  calls.length = 0;
+  const t0 = Date.now();
+  const res = await handleRequest(new Request("https://bot.example.workers.dev/webhook", { method: "POST", headers: { "x-line-signature": sign(raw) }, body: raw }), env, ctx);
+  const tRes = Date.now() - t0;
+  ok(res.status === 200 && tRes < 300, `waitUntil環境ではWebhookに即200を返す（${tRes}ms）`);
+  ok(pending.length === 1, "返信処理は waitUntil に渡される");
+  await Promise.all(pending);
+  const rp = calls.filter((c) => c.path === "/v2/bot/message/reply");
+  ok(rp.length === 1 && JSON.stringify(rp[0].body.messages).includes("r.8to.jp"), "waitUntilの中で紹介リンク付きの結果が返信される");
+  // (b) 返信の到着時刻: 保存(500msx複数)を待たずに返信される
+  const t1 = Date.now();
+  calls.length = 0;
+  const pending2 = [];
+  const raw2 = JSON.stringify({ destination: "U0", events: [postback(done)] });
+  let replyAt = 0;
+  const poll = setInterval(() => { if (!replyAt && calls.some((c) => c.path === "/v2/bot/message/reply")) replyAt = Date.now() - t1; }, 5);
+  await handleRequest(new Request("https://bot.example.workers.dev/webhook", { method: "POST", headers: { "x-line-signature": sign(raw2) }, body: raw2 }), env, { waitUntil: (p) => pending2.push(p) });
+  await Promise.all(pending2);
+  clearInterval(poll);
+  ok(replyAt > 0 && replyAt < 400, `保存が遅くても診断結果の返信は先に届く（返信まで${replyAt}ms）`);
+  env.__store = okStore;
+}
+
+console.log("\n[14] フォロー配信（Cron）の異常系");
+{
+  const HOUR = 3600 * 1000;
+  const noon = Date.parse("2026-10-05T03:00:00Z"); // 日本時間 12:00
+  const mk = (rec) => { const st = memoryStore(); return st.put("d:Ufollow", rec).then(() => st); };
+  const rec = { state: "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3", ts: noon - 30 * HOUR, stage: 0 };
+  const pushes = [];
+  const okClient = { async push(to, msgs) { pushes.push({ to, msgs }); } };
+  // (a) 保存の更新が失敗する → 送らない（毎時の二重送信を防ぐ）
+  let st = await mk(rec);
+  const badPut = { ...st, put: async () => { throw new Error("KV limit exceeded"); } };
+  let res = await runFollowups({ store: badPut, client: okClient, now: noon });
+  ok(pushes.length === 0 && res.errors === 1, "保存が失敗したときは、フォローを送らない（二重送信の防止）");
+  // (b) 正常: 1回だけ送り、stage が進む。同じ時刻に再実行しても再送しない
+  st = await mk(rec);
+  res = await runFollowups({ store: st, client: okClient, now: noon });
+  const res2 = await runFollowups({ store: st, client: okClient, now: noon });
+  ok(pushes.length === 1 && (await st.get("d:Ufollow")).stage === 1 && res.sent === 1 && res2.sent === 0, "正常時は1回だけ送り、再実行しても再送しない");
+  // (c) 一時エラー(500)は元に戻して次回再試行、ブロック(403)は削除
+  st = await mk(rec);
+  await runFollowups({ store: st, client: { async push() { const e = new Error("x"); e.status = 500; throw e; } }, now: noon });
+  ok((await st.get("d:Ufollow"))?.stage === 0, "一時エラー(500)のときは、送信前の状態に戻して次回再試行");
+  st = await mk(rec);
+  await runFollowups({ store: st, client: { async push() { const e = new Error("x"); e.status = 403; throw e; } }, now: noon });
+  ok((await st.get("d:Ufollow")) === null, "送れない宛先(403)は保存データを削除");
+  // (d) 夜間は送らない／KV一覧が失敗しても例外を出さない
+  st = await mk(rec);
+  res = await runFollowups({ store: st, client: okClient, now: Date.parse("2026-10-05T15:00:00Z") });
+  ok(res.skipped === "quiet-hours", "日本時間の夜間は送らない");
+  res = await runFollowups({ store: { ...st, list: async () => { throw new Error("KV down"); } }, client: okClient, now: noon });
+  ok(res.errors === 1, "KVの一覧取得が失敗しても例外を出さない");
+  // (e) Cron全体（KVが壊れていても落ちない）
+  const sres = await scheduled({ LINE_CHANNEL_ACCESS_TOKEN: "tok", LINE_API_BASE: `http://127.0.0.1:${PORT}`, __store: { get: async () => { throw new Error("x"); }, put: async () => { throw new Error("x"); }, delete: async () => { throw new Error("x"); }, list: async () => { throw new Error("x"); } } }, noon);
+  ok(!!sres.followup && !!sres.weekly, "Cron全体は、KVが全部壊れていても例外を出さない");
+}
 
 server.close();
 console.log(`\n結果: pass=${pass} fail=${fail}`);

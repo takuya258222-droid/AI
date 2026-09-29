@@ -15,6 +15,7 @@ crons = ["0 * * * *"]
 # （不要ならこのブロックを削除。削除してもBotの診断・応答は動きます）
 [[kv_namespaces]]
 binding = "STORE"
+id = "2d1d00f9b77648cf83e05ce4c7b0a1b1"
 
 # 必要な秘密情報（デプロイ後に Cloudflare の Settings → Variables and Secrets で登録）
 #   LINE_CHANNEL_SECRET        … チャネルシークレット

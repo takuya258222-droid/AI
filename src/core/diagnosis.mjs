@@ -308,4 +308,19 @@ export function resultMessages(a, base) {
   return msgs;
 }
 
+/**
+ * Flexの表示に失敗したとき用の、文字だけの診断結果（紹介リンク入り）。
+ * 診断結果とリンクは、どんな不具合があっても届くようにするための保険。
+ */
+export function resultFallbackMessages(a) {
+  const res = decide(a);
+  if (res.status !== "ok" || !res.picks.length) return null;
+  const lines = ["診断結果：あなたに合うサービスはこちらです。", ""];
+  res.picks.forEach((p, i) => {
+    lines.push(`${i + 1}. ${p.service.name}`, p.service.tagline, p.service.url, "");
+  });
+  lines.push("PR｜紹介リンク経由の登録で、当アカウントが報酬を受け取る場合があります。", "登録後は、完了画面のスクショをこのトークに送ってください。");
+  return [{ type: "text", text: lines.join("\n") }];
+}
+
 export { encode };

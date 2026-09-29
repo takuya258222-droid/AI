@@ -51,24 +51,34 @@ export async function runFollowups({ store, client, now = Date.now() }) {
   if (!store) return { skipped: "no-store" };
   const hour = jstHour(now);
   if (hour < 9 || hour >= 21) return { skipped: "quiet-hours" };
-  const result = { checked: 0, sent: 0, removed: 0 };
-  for (const key of await store.list("d:")) {
-    const rec = await store.get(key);
-    result.checked++;
-    if (!rec) continue;
-    const userId = key.slice(2);
-    const due = now - rec.ts >= STAGE_DELAY[rec.stage];
-    if (!due) continue;
+  const result = { checked: 0, sent: 0, removed: 0, errors: 0 };
+  const ttl = brand.followup.retentionDays * 24 * 3600;
+  let keys = [];
+  try { keys = await store.list("d:"); } catch (e) { console.log(JSON.stringify({ evt: "followup_list_error", msg: String(e).slice(0, 120) })); return { ...result, errors: 1 }; }
+  for (const key of keys) {
     try {
-      await client.push(userId, [followupMessage(rec.stage, rec.state)]);
-      result.sent++;
-      if (rec.stage >= 1) { await store.delete(key); result.removed++; }
-      else await store.put(key, { ...rec, stage: 1 }, brand.followup.retentionDays * 24 * 3600);
+      const rec = await store.get(key);
+      result.checked++;
+      if (!rec) continue;
+      const userId = key.slice(2);
+      const due = now - rec.ts >= STAGE_DELAY[rec.stage];
+      if (!due) continue;
+      // 先に「送信済み」に更新してから送る。保存が失敗したら送らない（毎時くり返し同じ人に届く二重送信を防ぐ）
+      if (rec.stage >= 1) await store.delete(key); else await store.put(key, { ...rec, stage: 1 }, ttl);
+      try {
+        await client.push(userId, [followupMessage(rec.stage, rec.state)]);
+        result.sent++;
+        if (rec.stage >= 1) result.removed++;
+      } catch (e) {
+        console.log(JSON.stringify({ evt: "followup_error", status: e.status }));
+        result.errors++;
+        // ブロック済み・無効なIDなどは、そのまま削除。一時エラー・上限到達(429)は、元に戻して次回に再試行
+        if (e.status && e.status >= 400 && e.status < 500 && e.status !== 429) { await store.delete(key); result.removed++; }
+        else { await store.put(key, rec, ttl); if (e.status === 429) break; }
+      }
     } catch (e) {
-      // ブロック済み・無効なIDなどは削除。それ以外(一時エラー・上限到達)は次回に再試行
-      if (e.status && e.status >= 400 && e.status < 500 && e.status !== 429) { await store.delete(key); result.removed++; }
-      console.log(JSON.stringify({ evt: "followup_error", status: e.status }));
-      if (e.status === 429) break;
+      result.errors++;
+      console.log(JSON.stringify({ evt: "followup_store_error", msg: String(e).slice(0, 120) }));
     }
   }
   return result;

@@ -1,5 +1,5 @@
 // 診断の回答（state）を postback.data に載せて受け渡す。サーバー側は何も保存しない（ステートレス）。
-import { SUBS } from "./labels.mjs";
+import { SUBS, JOBS, AGES, INCOMES, INCOME_UNKNOWN, PRIORITIES, TIMINGS, AREAS } from "./labels.mjs";
 
 const KEYS = ["j", "s", "g", "i", "p", "t", "r"];
 
@@ -11,12 +11,29 @@ export function encode(state) {
     .join(",");
 }
 
-/** "j:med,s:nurse" → {j:'med',s:'nurse'} */
+const ALLOWED = {
+  j: new Set(JOBS.map((x) => x.v)),
+  g: new Set(AGES.map((x) => x.v)),
+  i: new Set([...INCOMES, INCOME_UNKNOWN].map((x) => x.v)),
+  p: new Set(PRIORITIES.map((x) => x.v)),
+  t: new Set(TIMINGS.map((x) => x.v)),
+  r: new Set(AREAS.map((x) => x.v)),
+};
+const validSub = (j, s) => Boolean(SUBS[j]?.options?.some((o) => o.v === s));
+
+/** "j:med,s:nurse" → {j:'med',s:'nurse'}。未知の値・改ざん・古い形式は捨てる（その質問をもう一度聞く） */
 export function decode(str) {
-  const out = {};
-  for (const pair of (str || "").split(",")) {
+  const raw = {};
+  for (const pair of String(str || "").slice(0, 300).split(",")) {
     const [k, v] = pair.split(":");
-    if (KEYS.includes(k) && v) out[k] = v;
+    if (KEYS.includes(k) && v && !(k in raw)) raw[k] = v;
+  }
+  const out = {};
+  for (const k of KEYS) {
+    const v = raw[k];
+    if (!v) continue;
+    if (k === "s") { if (out.j && validSub(out.j, v)) out.s = v; continue; }
+    if (ALLOWED[k].has(v)) out[k] = v;
   }
   return out;
 }

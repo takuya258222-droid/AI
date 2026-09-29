@@ -29,8 +29,14 @@ export async function handleRequest(request, env, ctx) {
 
     console.log(JSON.stringify({ evt: "webhook", types: (body.events ?? []).map((e) => e.type + (e.follow?.isUnblocked ? ":unblocked" : "")) }));
     const c = { client: makeClient(env), store: getStore(env), base: baseUrl(env, url), env, now: Date.now() };
-    const results = await Promise.allSettled((body.events ?? []).map((e) => handleEvent(e, c)));
-    for (const r of results) if (r.status === "rejected") console.log(JSON.stringify({ evt: "handler_error", msg: String(r.reason).slice(0, 300) }));
+    const work = (async () => {
+      const results = await Promise.allSettled((body.events ?? []).map((e) => handleEvent(e, c)));
+      for (const r of results) if (r.status === "rejected") console.log(JSON.stringify({ evt: "handler_error", msg: String(r.reason).slice(0, 300) }));
+    })();
+    // LINEは応答が遅いと接続を切る。切られるとWorkerの処理も中断され、診断最終ステップの返信が届かなくなる。
+    // そこで200を即返し、返信・集計は waitUntil で最後まで実行する（ctxが無いNode/テストでは従来どおり待つ）。
+    if (typeof ctx?.waitUntil === "function") ctx.waitUntil(work);
+    else await work;
     return json({ ok: true });
   }
 
@@ -51,8 +57,9 @@ export async function scheduled(env, now = Date.now()) {
   const store = getStore(env);
   if (!store || !env.LINE_CHANNEL_ACCESS_TOKEN) return { skipped: true };
   const client = makeClient(env);
-  const r = await runFollowups({ store, client, now });
-  const w = await runWeekly({ store, client, env, now });
+  // フォロー配信と週次レポートは互いに影響しないよう、別々に実行する
+  const r = await runFollowups({ store, client, now }).catch((e) => ({ error: String(e).slice(0, 120) }));
+  const w = await runWeekly({ store, client, env, now }).catch((e) => ({ error: String(e).slice(0, 120) }));
   console.log(JSON.stringify({ evt: "cron", followup: r, weekly: w }));
   return { followup: r, weekly: w };
 }
