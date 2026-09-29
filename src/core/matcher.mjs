@@ -4,7 +4,7 @@ import services from "../../config/services.json" with { type: "json" };
 import { incomeRank, jobShort, ageLabel, priorityLabel } from "./labels.mjs";
 
 const SPECIALIST_KEYS = new Set(["nurse", "care", "pharm", "child", "dis"]);
-const ROLE_LIMIT = { child: 1 }; // 保育は1社に厳選、それ以外は2社
+const ROLE_LIMIT = { child: 1 }; // 主な候補: 保育は1社に厳選、それ以外は2社（3社目は下で「迷ったら3社まで」として追加）
 const FACTORY_SITES = new Set(["factory_world", "toyota_kikan"]); // 工場・期間工系（製造では必ず1つは残す）
 
 export const ALL_SERVICES = services.services;
@@ -88,17 +88,26 @@ export function decide(a) {
     if (f) picks.push({ service: f.s, role: "also", score: f.score });
   }
 
-  // 3枠目（専門特化の職種・製造では出さない）
+  // 3枠目（専門特化の職種では出さない）
   //  - 情報収集の段階／自分に合う仕事探し → 「まず相談したい方」枠
   //  - それ以外で条件を満たす場合 → 「挑戦枠」（M&A・コンサルなど）
-  if (!SPECIALIST_KEYS.has(key) && key !== "mfg" && picks.length >= 2) {
+  //  - 迷ったら3社まで案内する: 上記が無ければ、次点のサービスを加える
+  if (!SPECIALIST_KEYS.has(key) && picks.length >= 2) {
     const has = (id) => picks.some((x) => x.service.id === id);
-    if (a.t === "info" || a.p === "fit") {
-      const extra = ranked.find((p) => p.s.explore && !p.s.challenge && !has(p.s.id));
-      if (extra) picks.push({ service: extra.s, role: "explore", score: extra.score });
-    } else {
-      const ch = ranked.find((p) => p.s.challenge && !has(p.s.id));
-      if (ch) picks.push({ service: ch.s, role: "challenge", score: ch.score });
+    // エリア未回答のとき、エリア限定サービスは3枠目に入れない（追加質問を増やさないため）
+    const usable = (p) => !p.s.challenge && !has(p.s.id) && !(p.s.areas && !a.r);
+    if (key !== "mfg") {
+      if (a.t === "info" || a.p === "fit") {
+        const extra = ranked.find((p) => p.s.explore && usable(p));
+        if (extra) picks.push({ service: extra.s, role: "explore", score: extra.score });
+      } else {
+        const ch = ranked.find((p) => p.s.challenge && !has(p.s.id) && !(p.s.areas && !a.r));
+        if (ch) picks.push({ service: ch.s, role: "challenge", score: ch.score });
+      }
+    }
+    if (picks.length < 3) {
+      const next = ranked.find(usable);
+      if (next) picks.push({ service: next.s, role: "also", score: next.score });
     }
   }
 

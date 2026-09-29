@@ -924,7 +924,11 @@
       ],
       "fit": {
         "any": 55,
-        "retail": 70
+        "retail": 70,
+        "logi": 120,
+        "mfg": 120,
+        "eng": 90,
+        "const": 65
       },
       "exclude": [
         "nurse",
@@ -935,9 +939,7 @@
         "dis",
         "it_jr",
         "it_sr",
-        "it_free",
-        "mfg",
-        "logi"
+        "it_free"
       ],
       "pri": {
         "new": 25,
@@ -945,7 +947,21 @@
         "wl": 5
       },
       "confidence": "verified",
-      "enabled": true
+      "enabled": true,
+      "priByKey": {
+        "logi": {
+          "haken": -60
+        },
+        "mfg": {
+          "haken": -60
+        },
+        "eng": {
+          "haken": -60
+        },
+        "const": {
+          "haken": -60
+        }
+      }
     },
     {
       "id": "nijudai",
@@ -1189,7 +1205,9 @@
         "a30"
       ],
       "fit": {
-        "any": 45
+        "any": 45,
+        "logi": 60,
+        "mfg": 60
       },
       "exclude": [
         "nurse",
@@ -1199,9 +1217,7 @@
         "dis",
         "it_jr",
         "it_sr",
-        "it_free",
-        "mfg",
-        "logi"
+        "it_free"
       ],
       "pri": {
         "fit": 25,
@@ -1209,7 +1225,15 @@
       },
       "explore": true,
       "confidence": "verified",
-      "enabled": true
+      "enabled": true,
+      "priByKey": {
+        "logi": {
+          "haken": -60
+        },
+        "mfg": {
+          "haken": -60
+        }
+      }
     },
     {
       "id": "posiwill",
