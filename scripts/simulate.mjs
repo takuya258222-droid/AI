@@ -11,6 +11,8 @@ import { makeClient } from "../src/core/line.mjs";
 import { loadBudget } from "../src/core/budget.mjs";
 import { runDigest, parseFeed } from "../src/core/notefeed.mjs";
 import { variantOf } from "../src/core/handler.mjs";
+import { TIP_STATE, TIP_KEYS } from "../src/core/tips.mjs";
+import { keyOf } from "../src/core/matcher.mjs";
 
 const SECRET = "test-secret";
 const ADMIN = "Uadmin";
@@ -478,16 +480,35 @@ console.log("\n[16] 登録の意思ボタン・結果の再表示・面談ポイ
   ok(JSON.stringify(rr.replies[0].body.messages).includes("記録が見つかりません") && JSON.stringify(rr.replies[0].body.messages).includes("STEP 1"), "記録が無いときは、もう一度診断を案内");
   await store.put("d:Uuser1", { state: STATE, ts: Date.now(), stage: 0 });
 
-  // (d) 面談・選考ポイント
+  // (d) 面談・選考ポイント（職種×年代 → 5つのポイント＋その職種・年代に合うエージェント）
+  ok(TIP_KEYS.every((k) => keyOf(TIP_STATE[k]) === k), "面談ポイントの全職種が、診断の振り分けキーと対応している");
   rr = await send([postback("tips|nurse")]);
-  const tj = JSON.stringify(rr.replies[0].body.messages);
-  ok(tj.includes("看護師：面談・面接で確認したい5つ") && tj.includes("subon|nurse"), "看護師は「面談・面接で確認したい5つ」");
-  rr = await send([postback("tips|it_sr")]);
-  ok(JSON.stringify(rr.replies[0].body.messages).includes("選考で見られやすいポイント5つ"), "IT経験者は「選考で見られやすいポイント5つ」");
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("tips|nurse.a30") && JSON.stringify(rr.replies[0].body.messages).includes("年代を教えてください"), "職種を選ぶと、年代を聞く");
+  rr = await send([postback("tips|nurse.a30")]);
+  let tj = JSON.stringify(rr.replies[0].body.messages);
+  ok(tj.includes("看護師（30〜34歳）：面談・面接で確認したい5つ") && tj.includes("30代前半は"), "看護師×30代: 5つのポイントと、30代の傾向");
+  ok(tj.includes("MC-ナースネット") && tj.includes("ナースJJ") && !tj.includes("ASSIGN"), "看護師には看護の専門エージェント（ASSIGNは出さない）");
+  ok(rr.replies[0].body.messages.at(-1).quickReply && rr.replies[0].body.messages.length === 2, "ポイントの次にエージェントのカード（クイックリプライつき）");
+  rr = await send([postback("tips|bizsales.a25")]);
+  tj = JSON.stringify(rr.replies[0].body.messages);
+  const bizCards = rr.replies[0].body.messages.at(-1).contents.contents;
+  ok(JSON.stringify(bizCards[0]).includes("ASSIGN") && JSON.stringify(bizCards[0]).includes("いちばんのおすすめ"), "営業×20代後半: ASSIGNが先頭（いちばんのおすすめ）");
+  ok(tj.includes("面接対策など選考サポートを重視") && tj.includes("選考のサポート"), "選考サポートの記載があるサービスは、その内容を表示");
+  ok(tj.includes("20代後半は") && tj.includes("r.8to.jp"), "20代後半の傾向と、紹介リンクが出る");
+  rr = await send([postback("tips|it_sr.a35")]);
+  ok(!JSON.stringify(rr.replies[0].body.messages).includes("ASSIGN") && JSON.stringify(rr.replies[0].body.messages).includes("35歳以上は"), "35歳以上はASSIGNを出さず、35歳以上の傾向を表示");
+  rr = await send([postback("tips|consul.a30")]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("Groovement Agent") && JSON.stringify(rr.replies[0].body.messages).includes("逆質問"), "コンサル×30代: Groovementと、コンサルの選考ポイント");
+  rr = await send([postback("tips|medother.a25")]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("専門に特化した提携サービスは現在ありません"), "専門特化の提携先がない職種は、その旨を表示");
+  rr = await send([postback("tips|nurse.zz")]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("tips|nurse.a20"), "不正な年代は、年代の選択にもどる");
   rr = await send([textEvt("選考ポイントを教えて")]);
   ok(JSON.stringify(rr.replies[0].body.messages).includes("tips|consul"), "「選考ポイント」と送ると、職種の選択画面");
   rr = await send([postback("tips|zzz")]);
   ok(JSON.stringify(rr.replies[0].body.messages).includes("tips|nurse"), "不正な職種でも、選択画面に戻る");
+  rr = await send([postback(`d|${STATE}`)]);
+  ok(JSON.stringify(rr.replies[0].body.messages.at(-1).quickReply).includes("tips|nurse.a30"), "診断のあとの面談ポイントは、年代を聞かずに、診断の職種・年代で開く");
 
   // (e) 体験記カードに、最新のnoteが並ぶ
   rr = await send([postback("taiken")]);

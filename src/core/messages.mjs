@@ -2,7 +2,7 @@
 import { brand, campaign, notes, tips } from "./content.mjs";
 import { keyOf } from "./matcher.mjs";
 import { decode } from "./state.mjs";
-import { hasTips } from "./tips.mjs";
+import { tipsData } from "./tips.mjs";
 import { latestNoteBubble } from "./notefeed.mjs";
 import { INCOME_SOURCE } from "./labels.mjs";
 import {
@@ -398,8 +398,8 @@ export function fallbackMessages(base) {
 // ------------------------------------------------------------------ 登録の意思ボタン／新着note配信
 /** 「登録した／まだ迷ってる／あとで登録する」を押したときの返信 */
 export function regMessages(kind, stateStr) {
-  const k = keyOf(decode(stateStr));
-  const tipsData = hasTips(k) ? `tips|${k}` : "tips";
+  const st = decode(stateStr);
+  const tipsBtn = tipsData(keyOf(st), st.g);
   const T = (t, items) => [{ type: "text", text: t, quickReply: quickReply(items) }];
   if (kind === "y") {
     return T(
@@ -410,7 +410,7 @@ export function regMessages(kind, stateStr) {
   if (kind === "m") {
     return T(
       "迷うのは、自然なことです。\nまずは1社だけ、話を聞いてみる形でも大丈夫です。合わなければ、断ったり、やめたりしても構いません（利用は無料です）。\n\n気になる点があれば、下のボタンからどうぞ。",
-      [["よくある不安を見る", "faq", "よくある質問"], ["面談・選考のポイント", tipsData, "面談・選考のポイント"], ["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"], ["管理人に相談", "contact", "管理人に相談"]]
+      [["よくある不安を見る", "faq", "よくある質問"], ["面談・選考のポイント", tipsBtn, "面談・選考のポイント"], ["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"], ["管理人に相談", "contact", "管理人に相談"]]
     );
   }
   return T(

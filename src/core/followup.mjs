@@ -3,7 +3,7 @@
 import { brand, campaign } from "./content.mjs";
 import { encode, decode } from "./state.mjs";
 import { keyOf } from "./matcher.mjs";
-import { hasTips } from "./tips.mjs";
+import { tipsData } from "./tips.mjs";
 import { jstHour, jstDate } from "./stats.mjs";
 import {
   C, text, spacer, sep, postback, cta, ghost, linkBtn, eyebrow, bubble, bodyBox, footerBox, flexMessage, quickReply, panel, stepRow,
@@ -67,8 +67,8 @@ export function followupMessage(stage, stateStr) {
     });
     msg = flexMessage("登録はお済みですか？ スクショを送ると抽選に応募できます", b);
   } else {
-    const k = keyOf(decode(stateStr));
-    const tipsBtn = hasTips(k) ? postback("面談・選考のポイント", `tips|${k}`, "面談・選考のポイント") : postback("面談・選考のポイント", "tips", "面談・選考のポイント");
+    const st = decode(stateStr);
+    const tipsBtn = postback("面談・選考のポイント", tipsData(keyOf(st), st.g), "面談・選考のポイント");
     const b = bubble({
       body: bodyBox([
         eyebrow("FOLLOW UP"),

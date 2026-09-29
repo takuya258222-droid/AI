@@ -8,7 +8,7 @@ import {
   aboutMessage, policyMessage, privacyMessage, homeMessage, fallbackMessages, regMessages, subOnMessage,
 } from "./messages.mjs";
 import { recordDiagnosis, stopFollowup, stopAll } from "./followup.mjs";
-import { tipsMessage, tipsPickerMessage, hasTips } from "./tips.mjs";
+import { tipsFlow, tipsPickerMessage, hasTips } from "./tips.mjs";
 import { latestNotes, subRecord } from "./notefeed.mjs";
 import { netAskMessage, netResultMessage, prepSheetMessage, planAskMessage, planResultMessage, shareMessage, consultMessage } from "./tools.mjs";
 import { recordEntry, adminCommand } from "./lottery.mjs";
@@ -92,7 +92,7 @@ function route(action, arg, ctx) {
     case "faq": return { messages: [arg ? faqAnswerMessage(arg) : faqMenuMessage()] };
     case "know": return { messages: [knowledgeMessage(base)] };
     case "taiken": return { messages: [taikenMessage(base)] };
-    case "tips": return { messages: [arg && hasTips(arg) ? tipsMessage(arg) : tipsPickerMessage("tips")] };
+    case "tips": return { messages: tipsFlow(arg, base) };
     case "about": return { messages: [aboutMessage(base)] };
     case "policy": return { messages: [policyMessage(base)] };
     case "privacy": return { messages: [privacyMessage(base)] };
@@ -121,7 +121,7 @@ async function routeAsync(action, arg, ctx, userId) {
       return { messages: [text(`診断の記録が見つかりませんでした（診断から${brand.followup.retentionDays}日たつと、保存した内容は削除されます）。\nもう一度、30秒診断をどうぞ。`), questionMessage("j", {}, base)], evt: "start" };
     }
     case "taiken": return { messages: [taikenMessage(base, await latestNotes(ctx.env))], evt: "taiken" };
-    case "tips": return { messages: [arg && hasTips(arg) ? tipsMessage(arg) : tipsPickerMessage("tips")], evt: "tips" };
+    case "tips": return { messages: tipsFlow(arg, base), evt: arg.includes(".") ? "tips" : "tips_pick" };
     case "regy": case "regm": case "regl": return { messages: regMessages(action.slice(3), arg), evt: `reg_${action.slice(3)}` };
     case "subon": {
       if (!arg) return { messages: [tipsPickerMessage("sub")] };

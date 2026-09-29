@@ -8,7 +8,7 @@ import { questionMessage, resultMessages, salaryResultMessage } from "../src/cor
 import * as M from "../src/core/messages.mjs";
 import * as T from "../src/core/tools.mjs";
 import { followupMessage, remindMessage } from "../src/core/followup.mjs";
-import { tipsMessage, tipsPickerMessage } from "../src/core/tips.mjs";
+import { tipsFlow, tipsAgePickerMessage } from "../src/core/tips.mjs";
 import { digestMessage } from "../src/core/notefeed.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -106,7 +106,8 @@ const jobs = {
   tools: [T.consultMessage(BASE), T.netResultMessage("i4", BASE), T.planResultMessage("m3"), T.prepSheetMessage(BASE)],
   followup: [followupMessage(0, "j:med"), followupMessage(1, "j:med")],
   followup3_remind: [followupMessage(2, "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3"), remindMessage(2, "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3")],
-  tips: [tipsMessage("nurse"), tipsMessage("consul"), tipsPickerMessage("tips")],
+  tips: [tipsAgePickerMessage("bizsales"), ...tipsFlow("bizsales.a25", BASE)],
+  tips_nurse: tipsFlow("nurse.a30", BASE),
   reg_home: [M.regMessages("m", "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3")[0].type === "text" ? M.homeMessage(BASE) : null].filter(Boolean),
   taiken_latest: [M.taikenMessage(BASE, [
     { title: "【転職事例No.6】【薬剤師】時短で勤務は25%減。なのに年収は190万円落ちた ―― 消えた管理薬剤師手当50,000円と、派遣で510万円に戻すまでの給与明細", link: "https://note.com/wise_ivy1277/n/n56586a2f4fe6", ts: Date.parse("2026-09-27T21:59:37+0900"), thumb: "" },

@@ -7,7 +7,7 @@ import { questionMessage, resultMessages, resultFallbackMessages, salaryAskMessa
 import * as M from "../src/core/messages.mjs";
 import * as T from "../src/core/tools.mjs";
 import { followupMessage, remindMessage } from "../src/core/followup.mjs";
-import { tipsMessage, tipsPickerMessage, TIP_KEYS } from "../src/core/tips.mjs";
+import { tipsFlow, tipsAgePickerMessage, tipsPickerMessage, TIP_KEYS } from "../src/core/tips.mjs";
 import { digestMessage, parseFeed, latestNoteBubble } from "../src/core/notefeed.mjs";
 import { INCOMES } from "../src/core/labels.mjs";
 import { decode, encode, parseData, nextKey } from "../src/core/state.mjs";
@@ -134,7 +134,11 @@ for (const [name, msgs] of Object.entries(misc)) checkReply(msgs, name);
 {
   checkReply([tipsPickerMessage("tips")], "tips-picker");
   checkReply([tipsPickerMessage("sub")], "sub-picker");
-  for (const k of TIP_KEYS) checkReply([tipsMessage(k)], `tips:${k}`);
+  for (const k of TIP_KEYS) {
+    checkReply([tipsAgePickerMessage(k)], `tips-age:${k}`);
+    for (const g of ["a20", "a25", "a30", "a35"]) checkReply(tipsFlow(`${k}.${g}`, BASE), `tips:${k}.${g}`);
+  }
+  checkReply(tipsFlow("zzz", BASE), "tips:bad"); checkReply(tipsFlow("nurse.zz", BASE), "tips:bad-age");
   for (const kind of ["y", "m", "l"]) for (const st of ["j:med,s:nurse,g:a30,i:i5,p:wl,t:m3", "", "j:hacker"]) checkReply(M.regMessages(kind, st), `reg${kind} ${st}`);
   for (const k of [...TIP_KEYS, "all", "zzz"]) checkReply(M.subOnMessage(k), `subon:${k}`);
   const FEED = `<rss><channel><item><title>【看護師】テスト記事</title><media:thumbnail>https://assets.st-note.com/a.png?width=800</media:thumbnail><pubDate>Fri, 02 Oct 2026 20:00:00 +0900</pubDate><link>https://note.com/wise_ivy1277/n/n1</link></item><item><title>長いタイトル${"あ".repeat(200)}</title><pubDate>Fri, 02 Oct 2026 19:00:00 +0900</pubDate><link>https://note.com/wise_ivy1277/n/n2</link></item></channel></rss>`;

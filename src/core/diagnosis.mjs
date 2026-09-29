@@ -11,7 +11,7 @@ import {
   bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, progress, histogram, imgUrl, quickReply,
 } from "./flex.mjs";
 import { entryCard } from "./messages.mjs";
-import { hasTips } from "./tips.mjs";
+import { tipsData } from "./tips.mjs";
 
 // ------------------------------------------------------------------ 質問カード
 const QUESTIONS = {
@@ -305,7 +305,7 @@ export function resultMessages(a, base) {
     ["登録した", `regy|${st}`, "登録した"],
     ["まだ迷ってる", `regm|${st}`, "まだ迷ってる"],
     ["あとで登録する", `regl|${st}`, "あとで登録する"],
-    ["面談・選考のポイント", hasTips(res.key) ? `tips|${res.key}` : "tips", "面談・選考のポイント"],
+    ["面談・選考のポイント", tipsData(res.key, a.g), "面談・選考のポイント"],
     ["キャンペーン詳細", "camp", "キャンペーン詳細"],
     ["年収診断", "sal", "年収診断"],
     ["診断をやり直す", "st", "診断をやり直す"],
