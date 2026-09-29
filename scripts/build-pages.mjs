@@ -7,7 +7,7 @@ import { INCOME_SOURCE } from "../src/core/labels.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const clean = (s) => esc(s.replace(/^★/, ""));
+const clean = (s) => esc(s.replace(/★/g, ""));
 const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 const LINE_URL = "https://line.me/R/ti/p/%40641thwzc";
 
