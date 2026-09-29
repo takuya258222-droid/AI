@@ -12,7 +12,11 @@ fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
 const NOTE_EMAIL = process.env.NOTE_EMAIL || "takuya258222@gmail.com";
-const NOTE_PASSWORD = process.env.NOTE_PASSWORD || "Ta07210921";
+const NOTE_PASSWORD = process.env.NOTE_PASSWORD;
+if (!NOTE_PASSWORD) {
+  console.error("環境変数 NOTE_PASSWORD を設定してください（パスワードはコードに書かない）");
+  process.exit(1);
+}
 
 async function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));

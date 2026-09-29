@@ -1,0 +1,24 @@
+# Cloudflare Workers 設定（無料プランで動作／商用利用可）
+name = "career-line-bot"
+main = "worker/index.mjs"
+compatibility_date = "2025-09-01"
+
+# 画像・規約ページ(public/)をそのまま配信
+[assets]
+directory = "./public"
+
+# 診断後のフォロー配信（毎時チェック。日本時間の9〜21時のみ送信）
+[triggers]
+crons = ["0 * * * *"]
+
+# フォロー配信と日次集計に使うKV。初回デプロイ時に自動作成されます。
+# （不要ならこのブロックを削除。削除してもBotの診断・応答は動きます）
+[[kv_namespaces]]
+binding = "STORE"
+
+# 必要な秘密情報（デプロイ後に Cloudflare の Settings → Variables and Secrets で登録）
+#   LINE_CHANNEL_SECRET        … チャネルシークレット
+#   LINE_CHANNEL_ACCESS_TOKEN  … チャネルアクセストークン（長期）
+# 任意:
+#   ADMIN_USER_ID              … 運営者のLINE userId（スクショ通知・「統計」コマンド用）
+#   PUBLIC_BASE_URL            … 画像URLの基準（未設定ならリクエストのURLを使用）
