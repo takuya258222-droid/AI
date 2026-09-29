@@ -610,7 +610,8 @@
         "ma": 110,
         "it_none": 40,
         "it_jr": 40,
-        "it_free": 40
+        "it_free": 40,
+        "retail": 40
       },
       "pri": {
         "up": 35,
@@ -628,7 +629,11 @@
         "it_none",
         "it_jr",
         "it_sr",
-        "it_free"
+        "it_free",
+        "bizsales",
+        "retail",
+        "office",
+        "gen"
       ],
       "priByKey": {
         "logi": {
