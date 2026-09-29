@@ -43,7 +43,7 @@ export async function handleRequest(request, env, ctx) {
   // 流入経路つきの入口: /l/<経路名>?job=nurse → 診断開始の文面を入力済みでトークを開く
   const m = url.pathname.match(/^\/l\/([A-Za-z0-9_-]{1,24})$/);
   if (m) {
-    const JOB = { nurse: "看護師", care: "介護職", pharm: "薬剤師", child: "保育士", it: "IT", sales: "営業", mfg: "製造" };
+    const JOB = { nurse: "看護師", care: "介護職", pharm: "薬剤師", child: "保育士", it: "IT", sales: "営業", mfg: "製造", consul: "コンサル", ma: "M&A" };
     const job = JOB[url.searchParams.get("job")] ?? "";
     await bumpTag(getStore(env), m[1], "click");
     return Response.redirect(prefilledChatUrl(`30秒診断を始める【${m[1]}】${job}`), 302);

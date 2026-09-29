@@ -19,7 +19,8 @@ function check(a, res) {
   if (res.status !== "ok") return fail("status");
   const ids = res.picks.map((p) => p.service.id);
   if (new Set(ids).size !== ids.length) fail("duplicate");
-  if (ids.length < 1 || ids.length > 3) fail("count");
+  const HIGH = key === "consul" || key === "ma";
+  if (ids.length < 1 || ids.length > (HIGH ? 4 : 3)) fail("count");
   if (key === "child" && ids.length !== 1) fail("child must be 1");
   if (SPECIALIST[key]) {
     const okCount = key === "child" ? 1 : 2;
@@ -57,7 +58,17 @@ function check(a, res) {
   if (key === "mfg" && !ids.some((id) => ["factory_world", "toyota_kikan"].includes(id))) fail("mfg must keep a factory site");
   if (a.p === "haken" && ["logi", "mfg"].includes(key) && !ids.includes("workstaff_navi")) fail("haken should keep workstaff");
   // 迷ったら3社まで案内する: 20代の非専門職は、必ず3社
-  if (!SPECIALIST[key] && ["a20", "a25"].includes(a.g) && ids.length !== 3) fail("20s should get 3 links");
+  if (!SPECIALIST[key] && !HIGH && ["a20", "a25"].includes(a.g) && ids.length !== 3) fail("20s should get 3 links");
+  // コンサル・M&A（ハイクラス）: 3〜4社。専門特化のサービスを先頭に
+  if (HIGH) {
+    if (!(a.g === "a35" && key === "ma") && ids.length < 3) fail("high-class needs 3+ links");
+    if (key === "consul" && !["groovement", "myvision", "newma", "sxars"].includes(ids[0])) fail("consul: specialist first " + ids[0]);
+    if (key === "ma" && !["newma", "samurai", "posiwill"].includes(ids[0])) fail("ma: specialist first " + ids[0]);
+    if (key === "consul" && !ids.includes("myvision")) fail("consul: myvision missing");
+    if (key === "ma" && a.g !== "a35" && !ids.includes("newma")) fail("ma: newma missing");
+  }
+  // コンサル・M&A用のサービスが他の職種に出ていないこと
+  if (!HIGH && ids.includes("myvision")) fail("consul/ma leak " + ids);
   if (ids.length < 2 && key !== "child") small[key] = (small[key] || 0) + 1;
   if (key === "it_none" && a.g === "a35" && ids.some((i) => ["uzuzit", "projin"].includes(i))) fail("it_none 35+");
 }

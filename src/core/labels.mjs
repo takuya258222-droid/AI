@@ -4,6 +4,8 @@ export const JOBS = [
   { v: "sales", label: "営業・販売", short: "営業・販売" },
   { v: "office", label: "事務・管理", short: "事務・管理" },
   { v: "it", label: "IT・Web", short: "IT・Web" },
+  { v: "consul", label: "コンサル", short: "コンサル" },
+  { v: "ma", label: "M&A・FAS", short: "M&A" },
   { v: "med", label: "医療・福祉", short: "医療・福祉" },
   { v: "tech", label: "技術・製造", short: "技術・製造" },
   { v: "const", label: "建築・施工・設備", short: "建築・施工・設備" },

@@ -92,6 +92,8 @@ const jobs = {
   result_nurse: resultMessages({ j: "med", s: "nurse", g: "a30", i: "i5", p: "haken", t: "m3" }, BASE),
   result_sales: resultMessages({ j: "sales", s: "bizsales", g: "a25", i: "i4", p: "up", t: "m3" }, BASE),
   result_it: resultMessages({ j: "it", s: "it_none", g: "a25", i: "i3", p: "fit", t: "info", r: "kanto" }, BASE),
+  result_consul: resultMessages({ j: "consul", g: "a25", i: "i5", p: "up", t: "m3", r: "kansai" }, BASE),
+  result_ma: resultMessages({ j: "ma", g: "a25", i: "i4", p: "car", t: "m3" }, BASE),
   salary: [salaryResultMessage("i4", BASE)],
   campaign: [M.campaignMessage(BASE)],
   taiken: [M.taikenMessage(BASE)],

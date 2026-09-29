@@ -4,7 +4,10 @@ import services from "../../config/services.json" with { type: "json" };
 import { incomeRank, jobShort, ageLabel, priorityLabel } from "./labels.mjs";
 
 const SPECIALIST_KEYS = new Set(["nurse", "care", "pharm", "child", "dis"]);
-const ROLE_LIMIT = { child: 1 }; // 主な候補: 保育は1社に厳選、それ以外は2社（3社目は下で「迷ったら3社まで」として追加）
+// 主な候補の数: 保育は1社に厳選、コンサル・M&A（ハイクラス）は4社まで、それ以外は2社（3社目は下で「迷ったら3社まで」として追加）
+const ROLE_LIMIT = { child: 1, consul: 4, ma: 4 };
+// コンサル・M&A: 「挑戦枠」のサービス（NewMA・M&A BEGINNERS）も通常の候補として並べる
+const HIGHCLASS_KEYS = new Set(["consul", "ma"]);
 const FACTORY_SITES = new Set(["factory_world", "toyota_kikan"]); // 工場・期間工系（製造では必ず1つは残す）
 
 export const ALL_SERVICES = services.services;
@@ -75,7 +78,7 @@ export function decide(a) {
     .sort((x, y) => y.score - x.score || x.idx - y.idx);
 
   const limit = ROLE_LIMIT[key] ?? 2;
-  const main = ranked.filter((p) => !p.s.challenge).slice(0, limit);
+  const main = ranked.filter((p) => HIGHCLASS_KEYS.has(key) || !p.s.challenge).slice(0, limit);
 
   // エリア限定サービスが候補に入り、エリア未回答なら追加質問へ
   if (!a.r && main.some((p) => p.s.areas)) return { status: "need_area" };
@@ -96,7 +99,7 @@ export function decide(a) {
     const has = (id) => picks.some((x) => x.service.id === id);
     // エリア未回答のとき、エリア限定サービスは3枠目に入れない（追加質問を増やさないため）
     const usable = (p) => !p.s.challenge && !has(p.s.id) && !(p.s.areas && !a.r);
-    if (key !== "mfg") {
+    if (key !== "mfg" && !HIGHCLASS_KEYS.has(key)) {
       if (a.t === "info" || a.p === "fit") {
         const extra = ranked.find((p) => p.s.explore && usable(p));
         if (extra) picks.push({ service: extra.s, role: "explore", score: extra.score });
@@ -106,7 +109,7 @@ export function decide(a) {
       }
     }
     if (picks.length < 3) {
-      const next = ranked.find(usable);
+      const next = ranked.find((p) => usable(p) || (HIGHCLASS_KEYS.has(key) && p.s.challenge && !has(p.s.id) && !(p.s.areas && !a.r)));
       if (next) picks.push({ service: next.s, role: "also", score: next.score });
     }
   }

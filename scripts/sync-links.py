@@ -46,6 +46,12 @@ def main():
         sys.exit(__doc__)
     tab = sys.argv[sys.argv.index("--tab") + 1] if "--tab" in sys.argv else "threds"
     links = read_tab(sys.argv[1], tab)
+    # 「app」タブ（アプリ登録のリンク。MyVisionなど）も取り込む。同名は threds を優先
+    try:
+        for k, v in read_tab(sys.argv[1], "app").items():
+            links.setdefault(k, v)
+    except SystemExit:
+        pass
     src = json.loads((ROOT / "config/services.src.json").read_text(encoding="utf-8"))
     missing = []
     for s in src["services"]:

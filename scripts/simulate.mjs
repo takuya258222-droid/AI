@@ -378,6 +378,52 @@ console.log("\n[14] フォロー配信（Cron）の異常系");
   ok(!!sres.followup && !!sres.weekly, "Cron全体は、KVが全部壊れていても例外を出さない");
 }
 
+console.log("\n[15] コンサル・M&Aの選択ボタン（ハイクラス）");
+{
+  const walk = async (first, labels) => {
+    let rr = await send([postback("st")]);
+    let last = rr.replies[0].body;
+    ok(pick(last.messages, first) !== undefined, `Q1に「${first}」のボタンがある`);
+    for (const label of labels) {
+      const data = pick(last.messages, label);
+      if (!data) { ok(false, `「${label}」を選べる`); return null; }
+      rr = await send([postback(data)]);
+      last = rr.replies[0].body;
+    }
+    return { rr, last };
+  };
+  // コンサル: 20代後半・関西 → エリア質問が挟まり、コンサル特化サービスが3〜4社届く
+  let w = await walk("コンサル", ["コンサル", "25〜29歳", "500〜700万円", "年収アップ", "3か月以内に動きたい"]);
+  ok(w && JSON.stringify(w.last.messages).includes("エリア"), "コンサル(25歳〜)ではエリア質問が挟まる（関西限定のsXars用）");
+  w.rr = await send([postback(pick(w.last.messages, "関西（大阪・京都・兵庫など）") ?? pick(w.last.messages, w.last.messages.length ? postbacks(w.last.messages).find((p) => /関西/.test(p.label))?.label : ""))]);
+  let carousel = w.rr.replies[0].body.messages.at(-1);
+  let names = carousel.contents.contents.map((b) => JSON.stringify(b)).join("");
+  const cards = carousel.contents.contents.length - 1; // 最後はメニューカード
+  ok(cards >= 3 && cards <= 4, `コンサル(関西)は${cards}社のリンクが届く`);
+  ok(names.includes("Groovement Agent") && names.includes("MyVision") && names.includes("sXars"), "Groovement・MyVision・sXarsが含まれる");
+  ok(names.includes("af.moshimo.com") && names.includes("r.8to.jp"), "MyVision(もしも)とA8のリンクが両方ある");
+  // コンサル・関東: sXarsは出ない
+  w = await walk("コンサル", ["コンサル", "30〜34歳", "700万円〜", "キャリアアップ", "3か月以内に動きたい"]);
+  w.rr = await send([postback(postbacks(w.last.messages).find((p) => /首都圏/.test(p.label))?.data ?? "")]);
+  carousel = w.rr.replies[0].body.messages.at(-1);
+  names = JSON.stringify(carousel.contents);
+  ok(!names.includes("sXars") && names.includes("MyVision") && carousel.contents.contents.length - 1 >= 3, "コンサル(関東)はsXarsを出さず、MyVisionほか3社以上");
+  // M&A: 20代 → NewMA・M&A BEGINNERS・ASSIGN ほか
+  w = await walk("M&A・FAS", ["M&A・FAS", "25〜29歳", "400〜500万円", "年収アップ", "半年〜1年以内に検討"]);
+  carousel = w.rr.replies[0].body.messages.at(-1);
+  names = JSON.stringify(carousel.contents);
+  const cardsMa = carousel.contents.contents.length - 1;
+  ok(cardsMa >= 3 && cardsMa <= 4 && names.includes("NewMA") && names.includes("M&A BEGINNERS"), `M&A(20代)はNewMA・M&A BEGINNERSを含む${cardsMa}社`);
+  ok(w.rr.replies[0].body.messages.at(-1).quickReply, "最後のカードにクイックリプライ");
+  // キーワード・流入経路
+  r = await send([textEvt("コンサル転職について知りたい")]);
+  ok(r.replies.length === 1 && JSON.stringify(r.replies[0].body.messages).includes("STEP 2 / 5"), "「コンサル」と送ると、職種を飛ばして年代の質問から始まる");
+  r = await send([textEvt("M&Aに興味があります")]);
+  ok(r.replies.length === 1 && JSON.stringify(r.replies[0].body.messages).includes("STEP 2 / 5"), "「M&A」と送ると、年代の質問から始まる");
+  r = await send([textEvt("30秒診断を始める【note9】コンサル")]);
+  ok(JSON.stringify(r.replies[0].body.messages).includes("STEP 2 / 5"), "経路つきの入口(コンサル)でも職種を飛ばして開始");
+}
+
 server.close();
 console.log(`\n結果: pass=${pass} fail=${fail}`);
 process.exit(fail ? 1 : 0);

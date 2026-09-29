@@ -15,7 +15,7 @@ import { buildReport } from "./report.mjs";
 import { softStore } from "./store.mjs";
 
 const text = (t) => ({ type: "text", text: t });
-const PRESETS = [[/看護/, { j: "med", s: "nurse" }], [/介護/, { j: "med", s: "care" }], [/薬剤/, { j: "med", s: "pharm" }], [/保育/, { j: "med", s: "child" }], [/エンジニア|\bit\b/i, { j: "it" }], [/営業/, { j: "sales", s: "bizsales" }], [/製造|工場/, { j: "tech", s: "mfg" }]];
+const PRESETS = [[/看護/, { j: "med", s: "nurse" }], [/介護/, { j: "med", s: "care" }], [/薬剤/, { j: "med", s: "pharm" }], [/保育/, { j: "med", s: "child" }], [/エンジニア|\bit\b/i, { j: "it" }], [/コンサル/, { j: "consul" }], [/m[&＆]a|エムアンドエー/i, { j: "ma" }], [/営業/, { j: "sales", s: "bizsales" }], [/製造|工場/, { j: "tech", s: "mfg" }]];
 const TAG_RE = /【([A-Za-z0-9_-]{1,24})】/;
 /** 流入経路つきの入口から診断を始める（職種が分かれば、その質問を飛ばす） */
 async function startFromTag(ctx, userId, tag, raw) {
@@ -36,6 +36,8 @@ const KEYWORDS = [
   [/スケジュール|いつまで|逆算/, "plan"],
   [/面談準備|準備シート|面接/, "prep"],
   [/シェア|紹介する|友だちに|友達に|教える/, "share"],
+  [/コンサル/, "st-consul"],
+  [/m&a|エムアンドエー/, "st-ma"],
   [/年収/, "sal"],
   [/キャンペーン|paypay|ぺいぺい|ペイペイ|抽選|プレゼント/, "camp"],
   [/スクショ|スクリーンショット|登録|応募/, "steps"],
@@ -58,6 +60,8 @@ function route(action, arg, ctx) {
   switch (action) {
     case "st": return { messages: [questionMessage("j", {}, base)], evt: "start" };
     case "st-intro": return { messages: [text("転職のご相談は、30秒診断がいちばんの近道です。\nタップだけで、あなたに合うサービスをご案内します。"), questionMessage("j", {}, base)], evt: "start" };
+    case "st-consul": return { messages: [text("コンサル転職のご相談ですね。ハイクラス向けの専門サービスを中心に、あなたに合うところをご案内します。"), nextQuestion({ j: "consul" }, base)], evt: "start" };
+    case "st-ma": return { messages: [text("M&A業界へのご相談ですね。M&A・FAS領域に強いサービスを中心に、あなたに合うところをご案内します。"), nextQuestion({ j: "ma" }, base)], evt: "start" };
     case "d": {
       const key = nextKey(a);
       if (key) return { messages: [questionMessage(key, a, base)] };

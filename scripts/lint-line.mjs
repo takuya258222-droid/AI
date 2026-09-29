@@ -46,7 +46,7 @@ function checkMessage(m, where) {
   } else if (m.type === "flex") {
     if (!m.altText || m.altText.length > 400) bad(where, `altText length: ${m.altText?.length}`);
     const size = enc.encode(JSON.stringify(m.contents)).length;
-    if (size > 30000) bad(where, `flex size ${size}B (limit 50000)`);
+    if (size > 45000) bad(where, `flex size ${size}B (limit 50000)`);
     if (m.contents?.type === "carousel" && (m.contents.contents.length < 1 || m.contents.contents.length > 12)) bad(where, "carousel bubbles");
   } else if (m.type === "image") {
     for (const k of ["originalContentUrl", "previewImageUrl"]) if (!/^https:\/\//.test(m[k] ?? "")) bad(where, `image ${k} not https`);

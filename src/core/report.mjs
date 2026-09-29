@@ -3,7 +3,7 @@ import { jstDate, jstHour, tagTotals, jobTotals, counterTotals } from "./stats.m
 import { poolFor, monthOf } from "./lottery.mjs";
 
 const DAY = 24 * 3600 * 1000;
-const JOB_LABEL = { nurse: "看護師", care: "介護職", pharm: "薬剤師", child: "保育士", medother: "医療・福祉その他", it_none: "IT未経験", it_jr: "IT経験3年未満", it_sr: "IT経験3年以上", it_free: "IT・フリーランス", bizsales: "営業", retail: "販売・接客", office: "事務・管理", mfg: "製造", eng: "技術職", const: "建築・施工・設備", logi: "物流・ドライバー", gen: "その他", dis: "障がい者雇用" };
+const JOB_LABEL = { nurse: "看護師", care: "介護職", pharm: "薬剤師", child: "保育士", medother: "医療・福祉その他", it_none: "IT未経験", it_jr: "IT経験3年未満", it_sr: "IT経験3年以上", it_free: "IT・フリーランス", bizsales: "営業", retail: "販売・接客", office: "事務・管理", mfg: "製造", eng: "技術職", const: "建築・施工・設備", logi: "物流・ドライバー", gen: "その他", dis: "障がい者雇用", consul: "コンサル", ma: "M&A" };
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "―");
 
 export async function buildReport(store, days = 7, now = Date.now(), { weekly = false } = {}) {

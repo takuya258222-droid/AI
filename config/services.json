@@ -549,7 +549,8 @@
         "a25"
       ],
       "fit": {
-        "bizsales": 85
+        "bizsales": 85,
+        "consul": 95
       },
       "pri": {
         "up": 10,
@@ -602,7 +603,9 @@
         "it_sr": 40,
         "const": 100,
         "logi": 125,
-        "mfg": 125
+        "mfg": 125,
+        "consul": 115,
+        "ma": 110
       },
       "pri": {
         "up": 35,
@@ -614,9 +617,10 @@
         "const",
         "logi",
         "mfg",
-        "eng"
+        "eng",
+        "consul",
+        "ma"
       ],
-      "url": "https://r.8to.jp/LnvEkVeE4PEG",
       "priByKey": {
         "logi": {
           "haken": -60
@@ -626,8 +630,17 @@
         },
         "eng": {
           "haken": -60
+        },
+        "consul": {
+          "up": -35,
+          "car": -40
+        },
+        "ma": {
+          "up": -35,
+          "car": -40
         }
-      }
+      },
+      "url": "https://r.8to.jp/LnvEkVeE4PEG"
     },
     {
       "id": "samurai",
@@ -662,7 +675,9 @@
         "office": 60,
         "eng": 55,
         "gen": 55,
-        "it_sr": 50
+        "it_sr": 50,
+        "consul": 90,
+        "ma": 80
       },
       "pri": {
         "up": 35,
@@ -706,7 +721,8 @@
         "bizsales": 55,
         "office": 45,
         "gen": 45,
-        "eng": 40
+        "eng": 40,
+        "consul": 130
       },
       "pri": {
         "up": 15,
@@ -714,7 +730,49 @@
       },
       "confidence": "verified",
       "enabled": true,
+      "requireExempt": [
+        "consul"
+      ],
       "url": "https://r.8to.jp/zjUj2YbDqCMk"
+    },
+    {
+      "id": "myvision",
+      "name": "MyVision",
+      "category": "highclass",
+      "tagline": "コンサル転職に特化したエージェント",
+      "forWho": "コンサル業界を目指す方（未経験の方から、コンサル経験者のキャリア相談まで）",
+      "features": [
+        "コンサル業界への転職に特化（200社以上のコンサルファームに紹介可能／公式サイト記載）",
+        "支援者の8割がコンサル業界未経験（公式サイト記載）",
+        "過去の面接分析にもとづく資料と、元コンサルタントによる模擬面接で選考対策"
+      ],
+      "eligibility": "対象：コンサル業界を目指す方（年代の制限は明記なし・利用は無料／公式サイト記載）",
+      "why": {
+        "base": "コンサル業界に特化し、選考対策まで相談できる",
+        "up": "コンサル業界の求人を軸に、年収レンジを上げる転職を相談できる",
+        "car": "コンサルへのキャリアチェンジ・キャリアアップを、専門のアドバイザーに相談できる",
+        "new": "未経験からコンサルを目指す相談ができる（支援者の8割が未経験／公式サイト記載）",
+        "fit": "コンサルが自分に合うか、専門のアドバイザーに相談できる",
+        "wl": "コンサル業界の働き方も含めて相談できる",
+        "haken": "コンサル業界に特化し、選考対策まで相談できる"
+      },
+      "ages": [
+        "a20",
+        "a25",
+        "a30",
+        "a35"
+      ],
+      "fit": {
+        "consul": 128
+      },
+      "pri": {
+        "up": 15,
+        "car": 15,
+        "new": 10
+      },
+      "confidence": "verified",
+      "enabled": true,
+      "url": "https://af.moshimo.com/af/c/click?a_id=5808367&p_id=7660&pc_id=22149&pl_id=95796"
     },
     {
       "id": "newma",
@@ -748,7 +806,9 @@
       "fit": {
         "bizsales": 45,
         "office": 35,
-        "gen": 35
+        "gen": 35,
+        "consul": 105,
+        "ma": 130
       },
       "pri": {
         "up": 20,
@@ -757,6 +817,10 @@
       "confidence": "verified",
       "enabled": true,
       "challenge": true,
+      "requireExempt": [
+        "consul",
+        "ma"
+      ],
       "url": "https://r.8to.jp/ArrrARzSbg2i"
     },
     {
@@ -787,7 +851,8 @@
         ]
       },
       "fit": {
-        "bizsales": 50
+        "bizsales": 50,
+        "ma": 125
       },
       "pri": {
         "up": 25,
@@ -796,6 +861,9 @@
       "confidence": "verified",
       "enabled": true,
       "challenge": true,
+      "requireExempt": [
+        "ma"
+      ],
       "url": "https://r.8to.jp/HFbTwdawLATu"
     },
     {
@@ -836,7 +904,8 @@
         "it_sr": 50,
         "it_jr": 40,
         "gen": 50,
-        "eng": 45
+        "eng": 45,
+        "consul": 125
       },
       "pri": {
         "car": 30,
@@ -844,6 +913,9 @@
       },
       "confidence": "verified",
       "enabled": true,
+      "requireExempt": [
+        "consul"
+      ],
       "url": "https://r.8to.jp/c7aQH87Timyc"
     },
     {
@@ -884,7 +956,9 @@
         "it_sr",
         "it_free",
         "mfg",
-        "logi"
+        "logi",
+        "consul",
+        "ma"
       ],
       "pri": {
         "fit": 15,
@@ -937,7 +1011,9 @@
         "dis",
         "it_jr",
         "it_sr",
-        "it_free"
+        "it_free",
+        "consul",
+        "ma"
       ],
       "pri": {
         "new": 25,
@@ -946,7 +1022,6 @@
       },
       "confidence": "verified",
       "enabled": true,
-      "url": "https://r.8to.jp/MeNTDfrfdRNk",
       "priByKey": {
         "logi": {
           "haken": -60
@@ -960,7 +1035,8 @@
         "const": {
           "haken": -60
         }
-      }
+      },
+      "url": "https://r.8to.jp/MeNTDfrfdRNk"
     },
     {
       "id": "nijudai",
@@ -999,7 +1075,9 @@
         "it_sr",
         "it_free",
         "mfg",
-        "logi"
+        "logi",
+        "consul",
+        "ma"
       ],
       "pri": {
         "wl": 20,
@@ -1054,7 +1132,9 @@
         "it_sr",
         "it_free",
         "mfg",
-        "logi"
+        "logi",
+        "consul",
+        "ma"
       ],
       "pri": {
         "wl": 15,
@@ -1106,7 +1186,9 @@
         "dis",
         "it_jr",
         "it_sr",
-        "it_free"
+        "it_free",
+        "consul",
+        "ma"
       ],
       "pri": {
         "new": 25,
@@ -1114,7 +1196,6 @@
       },
       "confidence": "verified",
       "enabled": true,
-      "url": "https://r.8to.jp/TUphx86ZgKz6",
       "priByKey": {
         "logi": {
           "haken": -60
@@ -1128,7 +1209,8 @@
         "const": {
           "haken": -60
         }
-      }
+      },
+      "url": "https://r.8to.jp/TUphx86ZgKz6"
     },
     {
       "id": "nekonote",
@@ -1167,7 +1249,9 @@
         "it_sr",
         "it_free",
         "mfg",
-        "logi"
+        "logi",
+        "consul",
+        "ma"
       ],
       "pri": {
         "fit": 25
@@ -1215,7 +1299,9 @@
         "dis",
         "it_jr",
         "it_sr",
-        "it_free"
+        "it_free",
+        "consul",
+        "ma"
       ],
       "pri": {
         "fit": 25,
@@ -1224,7 +1310,6 @@
       "explore": true,
       "confidence": "verified",
       "enabled": true,
-      "url": "https://r.8to.jp/WTv7ZN9EgNBU",
       "priByKey": {
         "logi": {
           "haken": -60
@@ -1232,7 +1317,8 @@
         "mfg": {
           "haken": -60
         }
-      }
+      },
+      "url": "https://r.8to.jp/WTv7ZN9EgNBU"
     },
     {
       "id": "posiwill",
@@ -1520,6 +1606,6 @@
   ],
   "meta": {
     "linkTab": "threds",
-    "count": 36
+    "count": 37
   }
 }
