@@ -168,3 +168,6 @@ export function histogram(bars, maxPct) {
   });
   return box("horizontal", cols, { spacing: "sm", margin: "md" });
 }
+
+/** 画面下部に出る、次の行動へのショートカット（クイックリプライ）。items=[[ラベル, data, 表示テキスト]] */
+export const quickReply = (items) => ({ items: items.map(([label, data, dt]) => ({ type: "action", action: postback(label, data, dt) })) });

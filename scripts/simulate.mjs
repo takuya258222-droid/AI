@@ -105,6 +105,7 @@ ok(res.includes("r.8to.jp"), "アフィリエイトリンクが入っている")
 ok(res.indexOf("MC-ナースネット") < res.indexOf("ナースJJ"), "派遣希望なのでMC-ナースネットが先頭");
 ok(res.includes("年収ポジション") && res.includes("国税庁"), "年収ポジション（出典つき）が表示される");
 ok(res.includes("毎月抽選で3名様"), "抽選3名様の明記");
+ok(Boolean(last.messages.at(-1).quickReply?.items?.length), "診断結果の最後にショートカット（クイックリプライ）");
 ok(res.includes("notes/n4d10dab114ec.jpg") || res.includes("notes/n7ff23e3fe450.jpg"), "看護師の体験記が添えられる");
 ok([...store._dump().keys()].some((k) => k === "d:Uuser1"), "フォロー配信の宛先が保存される");
 
@@ -139,7 +140,7 @@ ok(r.pushes.length === 1 && r.pushes[0].body.to === ADMIN, "運営へ通知");
 ok(!store._dump().has("d:Uuser1"), "応募後はフォロー配信を停止");
 
 console.log("\n[8] キーワード自動応答");
-const kw = { 診断: "STEP 1", 求人: "30秒診断がいちばん", 転職: "30秒診断がいちばん", エージェント: "30秒診断がいちばん", キャンペーン: "PRESENT CAMPAIGN", PayPay: "PRESENT CAMPAIGN", ペイペイ: "PRESENT CAMPAIGN", 登録: "HOW TO ENTER", スクショ: "HOW TO ENTER", 問い合わせ: "CONTACT", 年収: "SALARY", 体験記: "CAREER STORIES", ノウハウ: "転職を成功させる4つの基本", 運営者: "ABOUT", 選定基準: "OUR STANDARDS", プライバシー: "PRIVACY", よくある質問: "Q & A", メニュー: "何をお探しですか" };
+const kw = { 診断: "STEP 1", 求人: "30秒診断がいちばん", 転職: "30秒診断がいちばん", エージェント: "30秒診断がいちばん", キャンペーン: "PRESENT CAMPAIGN", PayPay: "PRESENT CAMPAIGN", ペイペイ: "PRESENT CAMPAIGN", 登録: "HOW TO ENTER", スクショ: "HOW TO ENTER", 問い合わせ: "CONTACT", 転職の相談: "30秒診断がいちばん", 年収: "SALARY", 体験記: "CAREER STORIES", ノウハウ: "転職を成功させる4つの基本", 運営者: "ABOUT", 選定基準: "OUR STANDARDS", プライバシー: "PRIVACY", よくある質問: "Q & A", メニュー: "何をお探しですか" };
 for (const [k, expect] of Object.entries(kw)) {
   r = await send([textEvt(k)]);
   ok(r.replies.length === 1 && JSON.stringify(r.replies[0].body.messages).includes(expect), `「${k}」→ ${expect}`);

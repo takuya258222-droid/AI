@@ -8,7 +8,7 @@ import { encode, makeData, nextKey, stepNumber, previous } from "./state.mjs";
 import { brand, notes, getNote } from "./content.mjs";
 import {
   C, text, box, sep, spacer, uri, postback, cta, ghost, linkBtn, eyebrow, badge, checkRow, dotRow, stepRow, kv, panel,
-  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, progress, histogram, imgUrl,
+  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, progress, histogram, imgUrl, quickReply,
 } from "./flex.mjs";
 import { entryCard } from "./messages.mjs";
 
@@ -151,7 +151,7 @@ export function salaryResultMessage(iv, base) {
       checkRow("額面だけでなく、賞与・手当・残業代込みで比べる", { size: "xs" }),
     ]),
     footer: footerBox([
-      cta("30秒診断で、合うサービスを探す", postback("30秒診断をはじめる", "st", "30秒診断をはじめる")),
+      cta("30秒診断をはじめる", postback("30秒診断をはじめる", "st", "30秒診断をはじめる")),
       linkBtn("キャンペーン詳細を見る", postback("キャンペーン", "camp", "キャンペーン詳細")),
     ]),
   });
@@ -297,6 +297,13 @@ export function resultMessages(a, base) {
   ];
   const rel = relatedNotesMessage(a, res.key, base);
   if (rel) msgs.push(rel);
+  // 最後の吹き出しの下に、次の行動へのショートカットを表示
+  msgs[msgs.length - 1].quickReply = quickReply([
+    ["キャンペーン詳細", "camp", "キャンペーン詳細"],
+    ["年収診断", "sal", "年収診断"],
+    ["転職体験記", "taiken", "転職体験記"],
+    ["診断をやり直す", "st", "診断をやり直す"],
+  ]);
   return msgs;
 }
 

@@ -3,7 +3,7 @@ import { brand, campaign, notes } from "./content.mjs";
 import { INCOME_SOURCE } from "./labels.mjs";
 import {
   C, text, box, sep, spacer, uri, postback, cta, ghost, linkBtn, eyebrow, badge, checkRow, dotRow, stepRow, panel,
-  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, imgUrl, clip,
+  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, imgUrl, clip, quickReply,
 } from "./flex.mjs";
 
 const START = () => postback("30秒診断をスタート", "st", "30秒診断をスタート");
@@ -132,7 +132,9 @@ export function receiptMessages(base) {
     ]),
     footer: footerBox([ghost("キャンペーンの詳細を見る", postback("キャンペーン詳細", "camp", "キャンペーン詳細"))]),
   });
-  return [flexMessage("スクリーンショットを受け取りました。キャンペーンへの応募を受け付けました", b)];
+  const msg = flexMessage("スクリーンショットを受け取りました。キャンペーンへの応募を受け付けました", b);
+  msg.quickReply = quickReply([["キャンペーン詳細", "camp", "キャンペーン詳細"], ["転職体験記", "taiken", "転職体験記"], ["30秒診断", "st", "30秒転職診断"]]);
+  return [msg];
 }
 
 // ------------------------------------------------------------------ 転職体験記（noteマガジン）
