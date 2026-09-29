@@ -10,25 +10,35 @@ const START = () => postback("30秒診断をスタート", "st", "30秒診断を
 const PR_LINE = () => text("PR｜紹介リンク経由の登録で、当アカウントが各社から報酬を受け取る場合があります", { size: "xxs", color: C.muted, align: "center", margin: "sm" });
 
 // ------------------------------------------------------------------ あいさつ
+const FEATURES = [
+  ["30秒転職診断", "タップだけで、あなたに合うサービスを理由つきで2社に厳選"],
+  ["年収ポジション診断", "国税庁の公的データで、あなたの年収の現在地をチェック"],
+  ["職種別に厳選", "看護・介護・薬剤師・保育・IT・営業・製造・障がい者雇用ほか"],
+  ["転職体験記", "note連載「転職の全記録」。動機・年収・後悔まで実例で読める"],
+  ["抽選キャンペーン", "登録完了のスクショを送ると、毎月抽選で3名様にPayPay 500円分"],
+  ["自動フォロー・相談", "診断の結果はあとから見直せます。お問い合わせはこのトークへ"],
+];
+
 export function welcomeMessages(base, name, { returning = false } = {}) {
   const who = name ? `${clip(name, 12)}さん、` : "";
   const hello = returning
     ? `${who}おかえりなさい。\nまたお会いできて嬉しいです。\n\n診断は何度でも、無料でやり直せます。`
-    : `${who}友だち追加ありがとうございます。\n運営のなぎです。\n\n転職サービスは数が多く、どこも同じに見えて選びにくいですよね。\nこのLINEでは、あなたの職種・年代・年収帯に合うサービスだけを、理由つきでご案内します。`;
+    : `${who}友だち追加ありがとうございます。\n運営のなぎです。\n\n「転職エージェントって、どこも同じでしょ？」\n実は、向き不向きがはっきり分かれます。合わないサービスに登録して時間を使うのは、もったいない。\n\nこのLINEは、あなたの職種・年代・年収帯に合うサービスだけを、選んだ理由つきで2社に絞ってお届けします。`;
   const b = bubble({
     hero: heroImage(imgUrl(base, "welcome.jpg")),
     body: bodyBox([
-      text("自分に合うサービスが、\n30秒で分かります。", { size: "lg", weight: "bold", color: C.navy }),
-      spacer("sm"),
-      checkRow("質問はすべてタップ、入力は不要"),
-      checkRow("対象条件に合うサービスを、2社に厳選"),
-      checkRow("診断は無料・登録は任意"),
+      eyebrow("WHAT YOU CAN DO"),
+      text("このLINEでできること", { size: "lg", weight: "bold", color: C.navy, margin: "sm" }),
+      ...FEATURES.map(([title, desc], i) => stepRow(i + 1, title, desc)),
       sep("lg"),
+      text("質問はすべてタップ・入力不要。診断は無料で、登録は任意です。", { size: "xs", weight: "bold", color: C.goldDeep, margin: "md" }),
       text(`運営：${brand.persona}｜${brand.bioShort}`, { size: "xxs", color: C.muted, margin: "md" }),
     ]),
-    footer: footerBox([cta("👇 30秒診断をスタート", START()), PR_LINE()]),
+    footer: footerBox([cta("👇 まずは30秒診断をスタート", START()), PR_LINE()]),
   });
-  return [{ type: "text", text: hello }, flexMessage("30秒診断をスタートできます", b)];
+  const card = flexMessage("このLINEでできること：30秒診断・年収診断・体験記・抽選キャンペーン", b);
+  card.quickReply = quickReply([["年収診断", "sal", "年収診断"], ["転職体験記", "taiken", "転職体験記"], ["キャンペーン", "camp", "キャンペーン詳細"], ["よくある質問", "faq", "よくある質問"]]);
+  return [{ type: "text", text: hello }, card];
 }
 
 // ------------------------------------------------------------------ 登録→スクショ→抽選
