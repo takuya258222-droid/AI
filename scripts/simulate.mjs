@@ -311,6 +311,10 @@ console.log("\n[12] 異常系");
 env.LINE_API_BASE = `http://127.0.0.1:${PORT}`;
 const bad = await handleRequest(new Request("https://x/webhook", { method: "POST", headers: { "x-line-signature": sign("not json") }, body: "not json" }), env, {});
 ok(bad.status === 400, "壊れたJSONは400");
+for (const tabData of ["tab=a", "tab=b", "tab=c"]) {
+  r = await send([postback(tabData)]);
+  ok(r.status === 200 && r.replies.length === 0, `リッチメニューのタブ切り替え（${tabData}）には返信しない`);
+}
 r = await send([postback("unknown-action")]);
 ok(r.replies.length === 1, "未知のpostbackでも落ちずに応答");
 r = await send([postback("d|j:hacker,s:zzz,g:a99")]);

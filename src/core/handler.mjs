@@ -102,7 +102,8 @@ function route(action, arg, ctx) {
     case "prep": return { messages: [prepSheetMessage(base)] };
     case "share": return { messages: [shareMessage()] };
     case "home": return { messages: [homeMessage(base)] };
-    default: return { messages: fallbackMessages(base) };
+    // 古いボタンなど、未知の動作は「メッセージを受け取りました」ではなく、メニューを返す
+    default: return { messages: [homeMessage(base)] };
   }
 }
 
@@ -198,6 +199,8 @@ async function dispatch(event, ctx, rawCtx) {
     case "unfollow":
       return stopAll(store, userId);
     case "postback": {
+      // リッチメニューのタブ切り替え（data=「tab=…」）は、画面が切り替わるだけ。返信は不要
+      if (/^tab=/.test(event.postback?.data ?? "")) return null;
       const { action, arg } = parseData(event.postback?.data);
       let r;
       try { r = await routeAsync(action, arg, ctx, userId); } catch (e) {
