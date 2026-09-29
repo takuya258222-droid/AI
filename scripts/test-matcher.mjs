@@ -61,14 +61,15 @@ function check(a, res) {
   if (!SPECIALIST[key] && !HIGH && ["a20", "a25"].includes(a.g) && ids.length !== 3) fail("20s should get 3 links");
   // コンサル・M&A（ハイクラス）: 3〜4社。専門特化のサービスを先頭に
   if (HIGH) {
-    if (!(a.g === "a35" && key === "ma") && ids.length < 3) fail("high-class needs 3+ links");
-    if (key === "consul" && !["groovement", "myvision", "newma", "sxars"].includes(ids[0])) fail("consul: specialist first " + ids[0]);
-    if (key === "ma" && !["newma", "samurai", "posiwill"].includes(ids[0])) fail("ma: specialist first " + ids[0]);
-    if (key === "consul" && !ids.includes("myvision")) fail("consul: myvision missing");
+    if (a.g !== "a35" && ids.length < 3) fail("high-class needs 3+ links");
+    if (a.g === "a35" && key === "consul" && ids.length < 2) fail("consul 35+ needs 2+ links");
+    if (key === "consul" && !["assign", "groovement", "newma", "sxars"].includes(ids[0])) fail("consul: specialist first " + ids[0]);
+    if (key === "ma" && !["assign", "newma", "samurai", "posiwill"].includes(ids[0])) fail("ma: specialist first " + ids[0]);
+    if (key === "consul" && !ids.includes("groovement") && a.g !== "a20") fail("consul: groovement missing");
     if (key === "ma" && a.g !== "a35" && !ids.includes("newma")) fail("ma: newma missing");
   }
-  // コンサル・M&A用のサービスが他の職種に出ていないこと
-  if (!HIGH && ids.includes("myvision")) fail("consul/ma leak " + ids);
+  // ASSIGNが出るときは、必ず先頭（いちばんのおすすめ）
+  if (ids.includes("assign") && (ids[0] !== "assign" || res.picks[0].role !== "best")) fail("assign must be first/best " + ids);
   if (ids.length < 2 && key !== "child") small[key] = (small[key] || 0) + 1;
   if (key === "it_none" && a.g === "a35" && ids.some((i) => ["uzuzit", "projin"].includes(i))) fail("it_none 35+");
 }

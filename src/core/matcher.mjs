@@ -114,6 +114,14 @@ export function decide(a) {
     }
   }
 
+  // ASSIGNが候補に入るときは、必ず先頭（いちばんのおすすめ）に表示する
+  const ai = picks.findIndex((p) => p.service.id === "assign");
+  if (ai >= 0) {
+    const [ap] = picks.splice(ai, 1);
+    picks.unshift(ap);
+    picks.forEach((p, i) => { p.role = i === 0 ? "best" : p.role === "best" ? "also" : p.role; });
+  }
+
   return { status: "ok", key, picks, notes: notesFor(a, key, picks) };
 }
 

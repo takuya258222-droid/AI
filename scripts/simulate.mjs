@@ -400,14 +400,16 @@ console.log("\n[15] コンサル・M&Aの選択ボタン（ハイクラス）");
   let names = carousel.contents.contents.map((b) => JSON.stringify(b)).join("");
   const cards = carousel.contents.contents.length - 1; // 最後はメニューカード
   ok(cards >= 3 && cards <= 4, `コンサル(関西)は${cards}社のリンクが届く`);
-  ok(names.includes("Groovement Agent") && names.includes("MyVision") && names.includes("sXars"), "Groovement・MyVision・sXarsが含まれる");
-  ok(names.includes("af.moshimo.com") && names.includes("r.8to.jp"), "MyVision(もしも)とA8のリンクが両方ある");
+  ok(names.includes("Groovement Agent") && names.includes("sXars") && names.includes("ASSIGN"), "Groovement・sXars・ASSIGNが含まれる");
+  const firstCard = JSON.stringify(carousel.contents.contents[0]);
+  ok(firstCard.includes("ASSIGN") && firstCard.includes("いちばんのおすすめ"), "ASSIGNが出るときは先頭（いちばんのおすすめ）に表示される");
+  ok(!names.includes("MyVision") && !names.includes("af.moshimo.com"), "MyVisionは案内しない");
   // コンサル・関東: sXarsは出ない
   w = await walk("コンサル", ["コンサル", "30〜34歳", "700万円〜", "キャリアアップ", "3か月以内に動きたい"]);
   w.rr = await send([postback(postbacks(w.last.messages).find((p) => /首都圏/.test(p.label))?.data ?? "")]);
   carousel = w.rr.replies[0].body.messages.at(-1);
   names = JSON.stringify(carousel.contents);
-  ok(!names.includes("sXars") && names.includes("MyVision") && carousel.contents.contents.length - 1 >= 3, "コンサル(関東)はsXarsを出さず、MyVisionほか3社以上");
+  ok(!names.includes("sXars") && names.includes("Groovement Agent") && carousel.contents.contents.length - 1 >= 3, "コンサル(関東)はsXarsを出さず、Groovementほか3社以上");
   // M&A: 20代 → NewMA・M&A BEGINNERS・ASSIGN ほか
   w = await walk("M&A・FAS", ["M&A・FAS", "25〜29歳", "400〜500万円", "年収アップ", "半年〜1年以内に検討"]);
   carousel = w.rr.replies[0].body.messages.at(-1);
