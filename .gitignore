@@ -5,3 +5,4 @@ node_modules/
 screenshots/
 images/
 .wrangler/
+__pycache__/
