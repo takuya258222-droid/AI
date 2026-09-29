@@ -87,7 +87,7 @@ export function tipsAgePickerMessage(key) {
 }
 
 /** 職種×年代の5つのポイント */
-export function tipsMessage(key, age) {
+export function tipsMessage(key, age, { hook = false } = {}) {
   const j = tips.jobs[key];
   if (!j) return tipsPickerMessage("tips");
   const ageLabel = AGES.find((a) => a.v === age)?.label;
@@ -100,7 +100,10 @@ export function tipsMessage(key, age) {
       ...(AGE_NOTE[age] ? [panel([text("この年代で意識したいこと", { size: "xs", weight: "bold", color: C.goldDeep }), text(AGE_NOTE[age], { size: "xs", margin: "xs" })], { margin: "lg" })] : []),
       text(tips.note, { size: "xxs", color: C.muted, margin: "lg" }),
     ]),
-    footer: footerBox([text("▼ 次に、この職種・年代の方に合うエージェントをご案内します", { size: "xs", color: C.goldDeep, align: "center", weight: "bold" })], { paddingTop: "0px" }),
+    footer: footerBox([
+      text(hook ? "▼ 次に、あなたに合うエージェントをご案内します" : "▼ 次に、この職種・年代の方に合うエージェントをご案内します", { size: "xs", color: C.goldDeep, align: "center", weight: "bold" }),
+      ...(hook ? [text("登録して、完了画面のスクショを送ると、毎月抽選3名様に PayPay 500円分（全員プレゼントではありません）", { size: "xxs", color: C.muted, align: "center", margin: "xs" })] : []),
+    ], { paddingTop: "0px" }),
   });
   return flexMessage(`${j.label}${ageLabel ? `（${ageLabel}）` : ""}：${j.title}`, b);
 }

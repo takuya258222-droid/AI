@@ -5,13 +5,12 @@ import {
 } from "./labels.mjs";
 import { decide, reasonFor } from "./matcher.mjs";
 import { encode, makeData, nextKey, stepNumber, previous } from "./state.mjs";
-import { brand, notes, getNote } from "./content.mjs";
+import { brand } from "./content.mjs";
 import {
   C, text, box, sep, spacer, uri, postback, cta, ghost, linkBtn, eyebrow, badge, checkRow, dotRow, stepRow, kv, panel,
-  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, progress, histogram, imgUrl, quickReply, buttonCard,
+  bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, progress, histogram, imgUrl, quickReply, buttonBubble,
 } from "./flex.mjs";
-import { entryCard } from "./messages.mjs";
-import { tipsData } from "./tips.mjs";
+import { tipsData, tipsMessage, hasTips } from "./tips.mjs";
 
 // ------------------------------------------------------------------ 質問カード
 const QUESTIONS = {
@@ -200,29 +199,6 @@ function serviceBubble(pick, a, base) {
   });
 }
 
-function menuBubble() {
-  return bubble({
-    body: bodyBox(
-      [
-        eyebrow("NEXT ACTION"),
-        text("ほかにも、こんなことができます", { size: "md", weight: "bold", color: C.navy, margin: "sm" }),
-        text("診断のやり直しや、年収・体験記のチェックはこちらから。", { size: "xs", color: C.muted, margin: "sm" }),
-        spacer("lg"),
-        ghost("診断をやり直す", postback("診断をやり直す", "st", "診断をやり直す")),
-        spacer("sm"),
-        ghost("年収ポジション診断", postback("年収診断", "sal", "年収診断")),
-        spacer("sm"),
-        ghost("転職体験記を読む", postback("転職体験記", "taiken", "転職体験記")),
-        spacer("sm"),
-        ghost("管理人に直接相談", postback("管理人に相談", "contact", "管理人に相談")),
-        spacer("sm"),
-        ghost("友だちにも教える", postback("シェア", "share", "友だちにシェア")),
-      ],
-      { justifyContent: "center" }
-    ),
-  });
-}
-
 function summaryBubble(a, res, base) {
   const rows = [
     kv("職種", jobShort(a)),
@@ -243,84 +219,51 @@ function summaryBubble(a, res, base) {
   return bubble({
     hero: heroImage(imgUrl(base, "result.jpg")),
     body: bodyBox(body),
-    footer: footerBox([text("▼ 次に、あなたに合うサービスをご案内します", { size: "xs", color: C.goldDeep, align: "center", weight: "bold" })], { paddingTop: "0px" }),
+    footer: footerBox([text("▼ 次に、面談・選考のポイントと、あなたに合うサービスをご案内します", { size: "xs", color: C.goldDeep, align: "center", weight: "bold" })], { paddingTop: "0px" }),
   });
 }
 
-// ---- 職種に近い体験記・解説 ----
-function relatedNoteIds(a, key) {
-  const ids = [...(notes.related[key] ?? [])];
-  if (a.p === "haken") ids.unshift(...notes.relatedHaken);
-  if (!ids.length) {
-    ids.push(...(["a20", "a25"].includes(a.g) ? notes.relatedYoung : []), ...notes.relatedDefault);
-  }
-  return [...new Set(ids)].slice(0, 2);
-}
-
-export function noteBubble(n, base) {
-  return bubble({
-    hero: heroImage(imgUrl(base, `notes/${n.id}.jpg`), "1.91:1"),
-    body: bodyBox([eyebrow(n.label), text(n.headline, { size: "sm", weight: "bold", color: C.navy, margin: "sm", maxLines: 4 })], { paddingAll: "16px" }),
-    footer: footerBox([ghost("noteで読む", uri("noteで読む", n.url), { size: "xs", padding: "9px" })]),
+/** 紹介リンクのカルーセルの最後の1枚：登録の意思を伝える大きなボタン（押すだけで次の案内が出る） */
+function nextActionBubble(a, key) {
+  const st = encode(a);
+  return buttonBubble({
+    eyebrowText: "NEXT STEP",
+    title: "登録はお済みですか？",
+    sub: "押すだけでOK。状況に合わせて、次の案内をお出しします。",
+    note: "登録したら、完了画面のスクショをこのトークに送ると、毎月抽選3名様に PayPay 500円分（全員プレゼントではありません）。",
+    buttons: [
+      ["✅ 登録した（スクショで応募）", postback("登録した", `regy|${st}`, "登録した"), "cta"],
+      ["🤔 まだ迷っている", postback("まだ迷ってる", `regm|${st}`, "まだ迷ってる"), "ghost"],
+      ["⏳ あとで登録する", postback("あとで登録する", `regl|${st}`, "あとで登録する"), "ghost"],
+      ["📋 面談・選考のポイントを見る", postback("面談・選考のポイント", tipsData(key, a.g), "面談・選考のポイント"), "ghost"],
+    ],
+    links: [["抽選キャンペーン", postback("キャンペーン詳細", "camp", "キャンペーン詳細")], ["診断をやり直す", postback("診断をやり直す", "st", "診断をやり直す")]],
   });
-}
-
-function relatedNotesMessage(a, key, base) {
-  const list = relatedNoteIds(a, key).map(getNote).filter(Boolean);
-  if (!list.length) return null;
-  const intro = bubble({
-    body: bodyBox(
-      [
-        eyebrow("REAL STORIES"),
-        text("同じ職種の人は、実際どう動いた？", { size: "lg", weight: "bold", color: C.navy, margin: "sm" }),
-        text("動機・選考・年収・後悔まで書いた、体験記と解説です。登録前の判断材料にどうぞ。", { size: "xs", color: C.muted, margin: "md" }),
-        spacer("lg"),
-        cta("体験記マガジンを読む", uri("マガジンを読む", brand.note.magazineUrl), { size: "sm", padding: "12px" }),
-      ],
-      { justifyContent: "center" }
-    ),
-  });
-  return flexMessage("同じ職種の人の転職体験記・解説", carousel([intro, ...list.map((n) => noteBubble(n, base))]));
 }
 
 /**
  * 診断結果メッセージ一式を作る。
- * @returns {object[]} LINEに返信するメッセージ配列（最大5件）／エリア追加質問が必要なら質問カード1件
+ * 並び：診断結果 → 面談・選考のポイント（職種×年代）→ 紹介リンクのカルーセル（いちばん下）
+ * @returns {object[]} LINEに返信するメッセージ配列／エリア追加質問が必要なら質問カード1件
  */
 export function resultMessages(a, base) {
   const res = decide(a);
   if (res.status === "need_area") return [questionMessage("r", a, base)];
 
   const cards = res.picks.map((p) => serviceBubble(p, a, base));
-  cards.push(menuBubble());
-  // 並び：診断結果 → 同じ職種の体験記 → 登録案内 → 紹介リンクのカード → 次のアクション（大きなボタン）
+  cards.push(nextActionBubble(a, res.key));
   const msgs = [flexMessage("診断結果：あなたに合う転職サービスはこちら", summaryBubble(a, res, base))];
-  const rel = relatedNotesMessage(a, res.key, base);
-  if (rel) msgs.push(rel);
-  msgs.push(entryCard(a, base));
-  msgs.push(flexMessage("あなたに合う転職サービスはこちら（" + res.picks.map((p) => p.service.name).join("／") + "）", carousel(cards)));
-  // 紹介リンクの下に、押すだけで進める大きなボタンのカード（登録の意思・面談ポイント・キャンペーン）
+  if (hasTips(res.key)) msgs.push(tipsMessage(res.key, a.g, { hook: true }));
+  const carouselMsg = flexMessage("あなたに合う転職サービスはこちら（" + res.picks.map((p) => p.service.name).join("／") + "）", carousel(cards));
   const st = encode(a);
-  const action = buttonCard({
-    eyebrowText: "NEXT STEP",
-    title: "登録はお済みですか？",
-    sub: "押すだけでOK。状況に合わせて、次の案内をお出しします。",
-    buttons: [
-      ["✅ 登録した（スクショで応募）", postback("登録した", `regy|${st}`, "登録した"), "cta"],
-      ["🤔 まだ迷っている", postback("まだ迷ってる", `regm|${st}`, "まだ迷ってる"), "ghost"],
-      ["⏳ あとで登録する", postback("あとで登録する", `regl|${st}`, "あとで登録する"), "ghost"],
-      ["📋 面談・選考のポイントを見る", postback("面談・選考のポイント", tipsData(res.key, a.g), "面談・選考のポイント"), "ghost"],
-    ],
-    links: [["抽選キャンペーン", postback("キャンペーン詳細", "camp", "キャンペーン詳細")], ["診断をやり直す", postback("診断をやり直す", "st", "診断をやり直す")]],
-    alt: "登録はお済みですか？ ボタンを押すだけで、次の案内が出ます",
-  });
-  action.quickReply = quickReply([
+  // 紹介リンクは、いちばん下（入力欄のすぐ上）に置く
+  carouselMsg.quickReply = quickReply([
     ["登録した", `regy|${st}`, "登録した"],
     ["まだ迷ってる", `regm|${st}`, "まだ迷ってる"],
     ["面談・選考のポイント", tipsData(res.key, a.g), "面談・選考のポイント"],
     ["年収診断", "sal", "年収診断"],
   ]);
-  msgs.push(action);
+  msgs.push(carouselMsg);
   return msgs;
 }
 

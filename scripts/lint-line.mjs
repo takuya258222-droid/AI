@@ -108,9 +108,10 @@ while (queue.length) {
   }
   const msgs = resultMessages(a, BASE);
   checkReply(msgs, `result ${key}`);
-  const svc = msgs.at(-2); // 紹介リンクのカードは最後の1つ前。最後は、登録の意思などの大きなボタンのカード
-  if (!/https:\/\//.test(JSON.stringify(svc)) || svc.contents?.type !== "carousel" || !JSON.stringify(svc).includes("紹介リンク経由の登録で")) bad(`result ${key}`, "紹介リンクのカードが最後の1つ前にない");
-  if (!JSON.stringify(msgs.at(-1)).includes("regy|") || !msgs.at(-1).quickReply) bad(`result ${key}`, "最後に、登録の意思ボタンのカード（と、クイックリプライ）がない");
+  const svc = msgs.at(-1); // 紹介リンクのカルーセルが、いちばん下（最後の吹き出し）。その最後の1枚が、登録の意思ボタン
+  if (!/https:\/\//.test(JSON.stringify(svc)) || svc.contents?.type !== "carousel" || !JSON.stringify(svc).includes("紹介リンク経由の登録で")) bad(`result ${key}`, "紹介リンクのカードが最後にない");
+  if (!JSON.stringify(svc.contents.contents.at(-1)).includes("regy|") || !svc.quickReply) bad(`result ${key}`, "最後のカードに、登録の意思ボタン（とクイックリプライ）がない");
+  if (JSON.stringify(msgs).includes("REAL STORIES")) bad(`result ${key}`, "noteの体験記カードが残っている");
   const fb = resultFallbackMessages(a);
   if (!fb) bad(`result ${key}`, "文字だけの代替が作れない");
   else { checkReply(fb, `fallback ${key}`); for (const p of res.picks) if (!fb[0].text.includes(p.service.url)) bad(`fallback ${key}`, `代替に紹介URLがない ${p.service.id}`); }

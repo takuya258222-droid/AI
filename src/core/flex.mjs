@@ -60,18 +60,20 @@ export const linkBtn = (label, action) => ({ type: "button", style: "link", heig
  * 大きなタップボタンだけのカード（クイックリプライより目立つ）。
  * buttons: [[ラベル, アクション, "cta"|"ghost"]]、links: 下に並べる小さなリンク [[ラベル, アクション]]
  */
-export function buttonCard({ eyebrowText, title, sub, buttons, links = [], alt }) {
+export function buttonBubble({ eyebrowText, title, sub, note, buttons, links = [] }) {
   const rows = buttons.flatMap(([label, action, kind], i) => [i ? spacerPx("6px") : null, kind === "cta" ? cta(label, action) : ghost(label, action)].filter(Boolean));
   const body = [
     ...(eyebrowText ? [eyebrow(eyebrowText)] : []),
     text(title, { size: "lg", weight: "bold", color: C.navy, margin: "sm" }),
     ...(sub ? [text(sub, { size: "xs", color: C.muted, margin: "xs" })] : []),
+    ...(note ? [text(note, { size: "xxs", color: C.muted, margin: "sm" })] : []),
     spacerPx("10px"),
     ...rows,
     ...(links.length ? [box("horizontal", links.map(([l, a]) => linkBtn(l, a)), { margin: "md" })] : []),
   ];
-  return flexMessage(alt ?? title, bubble({ body: bodyBox(body, { paddingAll: "16px" }) }));
+  return bubble({ body: bodyBox(body, { paddingAll: "16px" }) });
 }
+export const buttonCard = (o) => flexMessage(o.alt ?? o.title, buttonBubble(o));
 const spacerPx = (h) => box("vertical", [], { height: h });
 
 // ---- 部品 ----
