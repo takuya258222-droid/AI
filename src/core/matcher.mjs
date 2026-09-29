@@ -8,6 +8,8 @@ const SPECIALIST_KEYS = new Set(["nurse", "care", "pharm", "child", "dis"]);
 const ROLE_LIMIT = { child: 1, consul: 4, ma: 4 };
 // コンサル・M&A: 「挑戦枠」のサービス（NewMA・M&A BEGINNERS）も通常の候補として並べる
 const HIGHCLASS_KEYS = new Set(["consul", "ma"]);
+// 職種ごとに、条件（年代など）を満たすなら必ず案内するサービス（枠が埋まっていれば最後の1枠と入れ替える）
+const ALWAYS_INCLUDE = { it_none: ["assign"], it_jr: ["assign"], it_sr: ["assign"], it_free: ["assign"] };
 const FACTORY_SITES = new Set(["factory_world", "toyota_kikan"]); // 工場・期間工系（製造では必ず1つは残す）
 
 export const ALL_SERVICES = services.services;
@@ -112,6 +114,14 @@ export function decide(a) {
       const next = ranked.find((p) => usable(p) || (HIGHCLASS_KEYS.has(key) && p.s.challenge && !has(p.s.id) && !(p.s.areas && !a.r)));
       if (next) picks.push({ service: next.s, role: "also", score: next.score });
     }
+  }
+
+  for (const id of ALWAYS_INCLUDE[key] ?? []) {
+    if (picks.some((p) => p.service.id === id)) continue;
+    const must = ranked.find((p) => p.s.id === id && !(p.s.areas && !a.r));
+    if (!must) continue;
+    const pick = { service: must.s, role: "also", score: must.score };
+    if (picks.length >= 3) picks[picks.length - 1] = pick; else picks.push(pick);
   }
 
   // ASSIGNが候補に入るときは、必ず先頭（いちばんのおすすめ）に表示する

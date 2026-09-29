@@ -68,6 +68,8 @@ function check(a, res) {
     if (key === "consul" && !ids.includes("groovement") && a.g !== "a20") fail("consul: groovement missing");
     if (key === "ma" && a.g !== "a35" && !ids.includes("newma")) fail("ma: newma missing");
   }
+  // ITでも、20〜34歳にはASSIGNを案内する
+  if (key.startsWith("it_") && ["a20", "a25", "a30"].includes(a.g) && !ids.includes("assign")) fail("IT: assign missing " + ids);
   // ASSIGNが出るときは、必ず先頭（いちばんのおすすめ）
   if (ids.includes("assign") && (ids[0] !== "assign" || res.picks[0].role !== "best")) fail("assign must be first/best " + ids);
   if (ids.length < 2 && key !== "child") small[key] = (small[key] || 0) + 1;

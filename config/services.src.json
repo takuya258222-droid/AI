@@ -607,7 +607,10 @@
         "logi": 125,
         "mfg": 125,
         "consul": 115,
-        "ma": 110
+        "ma": 110,
+        "it_none": 40,
+        "it_jr": 40,
+        "it_free": 40
       },
       "pri": {
         "up": 35,
@@ -621,7 +624,11 @@
         "mfg",
         "eng",
         "consul",
-        "ma"
+        "ma",
+        "it_none",
+        "it_jr",
+        "it_sr",
+        "it_free"
       ],
       "priByKey": {
         "logi": {
