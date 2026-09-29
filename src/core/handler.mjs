@@ -10,9 +10,22 @@ import {
 import { recordDiagnosis, stopFollowup } from "./followup.mjs";
 import { netAskMessage, netResultMessage, prepSheetMessage, planAskMessage, planResultMessage, shareMessage, consultMessage } from "./tools.mjs";
 import { recordEntry, adminCommand } from "./lottery.mjs";
-import { bump, report } from "./stats.mjs";
+import { bump, bumpTag } from "./stats.mjs";
+import { buildReport } from "./report.mjs";
 
 const text = (t) => ({ type: "text", text: t });
+const PRESETS = [[/看護/, { j: "med", s: "nurse" }], [/介護/, { j: "med", s: "care" }], [/薬剤/, { j: "med", s: "pharm" }], [/保育/, { j: "med", s: "child" }], [/エンジニア|\bit\b/i, { j: "it" }], [/営業/, { j: "sales", s: "bizsales" }], [/製造|工場/, { j: "tech", s: "mfg" }]];
+const TAG_RE = /【([A-Za-z0-9_-]{1,24})】/;
+/** 流入経路つきの入口から診断を始める（職種が分かれば、その質問を飛ばす） */
+async function startFromTag(ctx, userId, tag, raw, now) {
+  const { store, base } = ctx;
+  await bumpTag(store, tag, "start", now);
+  if (store && userId && !(await store.get(`u:${userId}`))) await store.put(`u:${userId}`, { tag }, 60 * 24 * 3600);
+  await bump(store, "start", now);
+  const preset = PRESETS.find(([re]) => re.test(raw))?.[1] ?? {};
+  return [text("ご相談ありがとうございます。30秒診断を始めます。"), nextQuestion(preset, base)];
+}
+async function sourceOf(store, userId) { return store && userId ? (await store.get(`u:${userId}`))?.tag : undefined; }
 const norm = (s) => s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
 
 /** キーワード → 動作。上から順に判定する */
@@ -120,6 +133,8 @@ export async function handleEvent(event, ctx) {
       const r = route(action, arg, ctx);
       if (r.evt) await bump(store, r.evt, now);
       if (r.record) {
+        await bump(store, `job_${r.key}`, now);
+        await bumpTag(store, await sourceOf(store, userId), "done", now);
         await recordDiagnosis(store, userId, r.record, now);
         console.log(JSON.stringify({ evt: "diag_done", key: r.key, picks: r.picks, priority: r.record.p }));
       }
@@ -130,6 +145,7 @@ export async function handleEvent(event, ctx) {
       if (m.type === "image") {
         await bump(store, "shot", now);
         await recordEntry(store, userId, now);
+        await bumpTag(store, await sourceOf(store, userId), "shot", now);
         await stopFollowup(store, userId); // 応募済みの方へのフォローは停止
         if (env.ADMIN_USER_ID) {
           try { await client.push(env.ADMIN_USER_ID, [text("📥 キャンペーンのスクショが届きました。トークをご確認ください。")]); } catch { /* 通知は任意 */ }
@@ -140,13 +156,18 @@ export async function handleEvent(event, ctx) {
 
       const raw = m.text.trim();
       const t = norm(raw);
-      if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID && /^(統計|stats)$/.test(t)) {
-        return safeReply(ctx, event.replyToken, [text(await report(store, 7, now))]);
+      if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID && /^(統計|stats)(30)?$/.test(t)) {
+        return safeReply(ctx, event.replyToken, [text(await buildReport(store, t.endsWith("30") ? 30 : 7, now))]);
+      }
+      if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID && /^経路(リンク)?$/.test(t)) {
+        return safeReply(ctx, event.replyToken, [text(`流入経路つきのリンク\n${ctx.base}/l/経路名\n職種つき：${ctx.base}/l/経路名?job=nurse\n（job：nurse / care / pharm / child / it / sales / mfg）\n\n例）noteの記事1 → ${ctx.base}/l/note1\n例）Threadsのプロフィール → ${ctx.base}/l/threads\n※経路名は英数字・ハイフン・アンダースコア（24字まで）`)]);
       }
       if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID) {
         const out = await adminCommand(t, { store, client, now });
         if (out) return safeReply(ctx, event.replyToken, [text(out)]);
       }
+      const tagMatch = raw.match(TAG_RE);
+      if (tagMatch) return safeReply(ctx, event.replyToken, await startFromTag(ctx, userId, tagMatch[1], raw, now));
       if (t === norm(brand.followup.stopKeyword)) {
         await stopFollowup(store, userId);
         return safeReply(ctx, event.replyToken, [text("フォローのメッセージの配信を停止し、保存していた情報を削除しました。\nまた診断したくなったら、いつでもメニューからどうぞ。")]);

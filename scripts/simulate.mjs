@@ -6,6 +6,7 @@ import { handleRequest, scheduled } from "../src/core/app.mjs";
 import { memoryStore } from "../src/core/store.mjs";
 import { report } from "../src/core/stats.mjs";
 import { runFollowups } from "../src/core/followup.mjs";
+import { buildReport, runWeekly } from "../src/core/report.mjs";
 import { makeClient } from "../src/core/line.mjs";
 
 const SECRET = "test-secret";
@@ -246,6 +247,35 @@ r = await send([adm("当選連絡")]);
 ok(JSON.stringify(r.replies[0].body.messages).includes("連絡済み"), "当選連絡の二重送信を防止");
 r = await send([adm("管理")]);
 ok(JSON.stringify(r.replies[0].body.messages).includes("運営者用コマンド"), "ヘルプ");
+
+console.log("\n[11d] 流入経路・職種別の入口・週次レポート");
+let lr = await handleRequest(new Request("https://bot.example.workers.dev/l/note1?job=nurse"), env, {});
+ok(lr.status === 302 && lr.headers.get("location").includes("oaMessage") && decodeURIComponent(lr.headers.get("location")).includes("【note1】看護師"), "/l/note1?job=nurse がトークを開くリンクにリダイレクト");
+lr = await handleRequest(new Request("https://bot.example.workers.dev/l/bad tag!"), env, {});
+ok(lr.status === 404, "不正な経路名は404");
+const asU = (uid, ev) => ({ ...ev, source: { type: "user", userId: uid } });
+r = await send([asU("Utag", textEvt("30秒診断を始める【note1】看護師"))]);
+const q = JSON.stringify(r.replies[0].body.messages);
+ok(q.includes("年代を教えてください") && !q.includes("現在のお仕事は"), "看護師の入口は、職種の質問を飛ばして年代から開始");
+r = await send([asU("Utag", postback("d|j:med,s:nurse,g:a25,i:i4,p:up,t:now"))]);
+ok(r.replies[0].body.messages.length === 4, "診断完了");
+await send([asU("Utag", imageEvt("Utag"))]);
+const rep = await buildReport(store, 7, Date.now());
+ok(rep.includes("note1：1→1→1→1"), "経路別に クリック→開始→完了→スクショ が集計される");
+ok(rep.includes("看護師"), "職種別の診断数が出る");
+r = await send([adm("統計")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("流入経路別"), "「統計」に経路別が出る");
+r = await send([adm("経路リンク")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("/l/経路名"), "「経路リンク」で使い方を案内");
+const MON = Date.UTC(2026, 9, 5, 0, 30, 0); // 月曜 9:30 JST
+calls.length = 0;
+const cl = makeClient(env);
+let wk = await runWeekly({ store, client: cl, env, now: MON });
+ok(wk.sent === true && calls.some((c) => c.path === "/v2/bot/message/push" && c.body.to === ADMIN && JSON.stringify(c.body).includes("週次レポート") && JSON.stringify(c.body).includes("💡")), "月曜9時台に週次レポート（ヒントつき）を運営者へ送信");
+wk = await runWeekly({ store, client: cl, env, now: MON + 600 * 1000 });
+ok(wk.skipped === "already-sent", "同じ週は二重送信しない");
+wk = await runWeekly({ store, client: cl, env, now: MON + 24 * 3600 * 1000 });
+ok(wk.skipped === "not-monday-9", "月曜以外は送らない");
 
 console.log("\n[12] 異常系");
 env.LINE_API_BASE = `http://127.0.0.1:${PORT}`;

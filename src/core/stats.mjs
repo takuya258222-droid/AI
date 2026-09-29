@@ -36,3 +36,41 @@ export async function report(store, days = 7, now = Date.now()) {
   lines.push(`診断完了率：${rate}%`);
   return lines.join("\n");
 }
+
+// ---- 流入経路別のカウンター（t:日付:経路:指標）。ユーザーは特定しない ----
+export async function bumpTag(store, tag, metric, now = Date.now()) {
+  if (!store || !tag) return;
+  try {
+    const k = `t:${jstDate(now)}:${tag}:${metric}`;
+    const v = (await store.get(k)) ?? { n: 0 };
+    v.n += 1;
+    await store.put(k, v, 120 * 24 * 3600);
+  } catch (e) {
+    console.log(JSON.stringify({ evt: "stats_error", msg: String(e).slice(0, 120) }));
+  }
+}
+
+/** 経路別の合計 {tag:{click,start,done,shot}} */
+export async function tagTotals(store, days = 7, now = Date.now()) {
+  const from = jstDate(now - (days - 1) * DAY);
+  const out = {};
+  for (const k of await store.list("t:")) {
+    const [, date, tag, metric] = k.split(":");
+    if (date < from) continue;
+    const n = (await store.get(k))?.n ?? 0;
+    (out[tag] ??= { click: 0, start: 0, done: 0, shot: 0 })[metric] += n;
+  }
+  return out;
+}
+
+/** 職種別の診断完了数 {key:n} */
+export async function jobTotals(store, days = 7, now = Date.now()) {
+  const from = jstDate(now - (days - 1) * DAY);
+  const out = {};
+  for (const k of await store.list("s:")) {
+    const [, date, name] = k.split(":");
+    if (date < from || !name.startsWith("job_")) continue;
+    out[name.slice(4)] = (out[name.slice(4)] ?? 0) + ((await store.get(k))?.n ?? 0);
+  }
+  return out;
+}
