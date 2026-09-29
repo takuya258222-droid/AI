@@ -23,6 +23,7 @@ export async function handleRequest(request, env, ctx) {
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: "bad json" }, 400); }
 
+    console.log(JSON.stringify({ evt: "webhook", types: (body.events ?? []).map((e) => e.type + (e.follow?.isUnblocked ? ":unblocked" : "")) }));
     const c = { client: makeClient(env), store: getStore(env), base: baseUrl(env, url), env, now: Date.now() };
     const results = await Promise.allSettled((body.events ?? []).map((e) => handleEvent(e, c)));
     for (const r of results) if (r.status === "rejected") console.log(JSON.stringify({ evt: "handler_error", msg: String(r.reason).slice(0, 300) }));

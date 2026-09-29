@@ -67,6 +67,7 @@ function route(action, arg, ctx) {
 async function safeReply(ctx, replyToken, messages) {
   try {
     await ctx.client.reply(replyToken, messages);
+    console.log(JSON.stringify({ evt: "reply_ok", n: messages.length }));
   } catch (e) {
     console.log(JSON.stringify({ evt: "reply_error", status: e.status, body: JSON.stringify(e.body ?? "").slice(0, 300) }));
     if (e.status === 400) {
