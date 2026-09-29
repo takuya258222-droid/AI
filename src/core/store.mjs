@@ -39,3 +39,15 @@ export function kvStore(kv) {
 export function getStore(env) {
   return env.STORE ? kvStore(env.STORE) : env.__store ?? null;
 }
+
+/** 保存に失敗しても、返信（診断結果など）は止めないためのラッパー。失敗はログに残す */
+export function softStore(store) {
+  if (!store) return store;
+  const wrap = (fn, fallback) => async (...args) => {
+    try { return await fn(...args); } catch (e) {
+      console.log(JSON.stringify({ evt: "store_error", msg: String(e).slice(0, 160) }));
+      return fallback;
+    }
+  };
+  return { get: wrap(store.get.bind(store), null), put: wrap(store.put.bind(store), undefined), delete: wrap(store.delete.bind(store), undefined), list: wrap(store.list.bind(store), []) };
+}

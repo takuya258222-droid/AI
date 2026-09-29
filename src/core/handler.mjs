@@ -12,6 +12,7 @@ import { netAskMessage, netResultMessage, prepSheetMessage, planAskMessage, plan
 import { recordEntry, adminCommand } from "./lottery.mjs";
 import { bump, bumpTag } from "./stats.mjs";
 import { buildReport } from "./report.mjs";
+import { softStore } from "./store.mjs";
 
 const text = (t) => ({ type: "text", text: t });
 const PRESETS = [[/看護/, { j: "med", s: "nurse" }], [/介護/, { j: "med", s: "care" }], [/薬剤/, { j: "med", s: "pharm" }], [/保育/, { j: "med", s: "child" }], [/エンジニア|\bit\b/i, { j: "it" }], [/営業/, { j: "sales", s: "bizsales" }], [/製造|工場/, { j: "tech", s: "mfg" }]];
@@ -114,7 +115,9 @@ async function notifyAdmin(ctx, userId, raw) {
   } catch { /* 通知は任意 */ }
 }
 
-export async function handleEvent(event, ctx) {
+export async function handleEvent(event, rawCtx) {
+  // 保存（KV）が一時的に失敗しても、診断結果の返信は必ず送る
+  const ctx = { ...rawCtx, store: softStore(rawCtx.store) };
   const { client, store, env } = ctx;
   const now = ctx.now ?? Date.now();
   const userId = event.source?.userId;
@@ -131,14 +134,18 @@ export async function handleEvent(event, ctx) {
     case "postback": {
       const { action, arg } = parseData(event.postback?.data);
       const r = route(action, arg, ctx);
-      if (r.evt) await bump(store, r.evt, now);
-      if (r.record) {
-        await bump(store, `job_${r.key}`, now);
-        await bumpTag(store, await sourceOf(store, userId), "done", now);
-        await recordDiagnosis(store, userId, r.record, now);
-        console.log(JSON.stringify({ evt: "diag_done", key: r.key, picks: r.picks, priority: r.record.p }));
-      }
-      return safeReply(ctx, event.replyToken, r.messages);
+      // 先に返信（診断結果・紹介リンクを確実に届ける）。集計・保存はそのあと
+      const sent = await safeReply(ctx, event.replyToken, r.messages);
+      try {
+        if (r.evt) await bump(store, r.evt, now);
+        if (r.record) {
+          await bump(store, `job_${r.key}`, now);
+          await bumpTag(store, await sourceOf(store, userId), "done", now);
+          await recordDiagnosis(store, userId, r.record, now);
+          console.log(JSON.stringify({ evt: "diag_done", key: r.key, picks: r.picks, priority: r.record.p }));
+        }
+      } catch (e) { console.log(JSON.stringify({ evt: "post_reply_error", msg: String(e).slice(0, 160) })); }
+      return sent;
     }
     case "message": {
       const m = event.message;
@@ -163,7 +170,7 @@ export async function handleEvent(event, ctx) {
         return safeReply(ctx, event.replyToken, [text(`流入経路つきのリンク\n${ctx.base}/l/経路名\n職種つき：${ctx.base}/l/経路名?job=nurse\n（job：nurse / care / pharm / child / it / sales / mfg）\n\n例）noteの記事1 → ${ctx.base}/l/note1\n例）Threadsのプロフィール → ${ctx.base}/l/threads\n※経路名は英数字・ハイフン・アンダースコア（24字まで）`)]);
       }
       if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID) {
-        const out = await adminCommand(t, { store, client, now });
+        const out = await adminCommand(t, { store: rawCtx.store, client, now });
         if (out) return safeReply(ctx, event.replyToken, [text(out)]);
       }
       const tagMatch = raw.match(TAG_RE);

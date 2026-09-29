@@ -292,14 +292,13 @@ export function resultMessages(a, base) {
 
   const cards = res.picks.map((p) => serviceBubble(p, a, base));
   cards.push(menuBubble());
-  const msgs = [
-    flexMessage("診断結果：あなたに合う転職サービスはこちら", summaryBubble(a, res, base)),
-    flexMessage("あなたに合う転職サービスはこちら（" + res.picks.map((p) => p.service.name).join("／") + "）", carousel(cards)),
-    entryCard(a, base),
-  ];
+  // 並び：診断結果 → 同じ職種の体験記 → 登録案内 → 紹介リンクのカード（最後）
+  const msgs = [flexMessage("診断結果：あなたに合う転職サービスはこちら", summaryBubble(a, res, base))];
   const rel = relatedNotesMessage(a, res.key, base);
   if (rel) msgs.push(rel);
-  // 最後の吹き出しの下に、次の行動へのショートカットを表示
+  msgs.push(entryCard(a, base));
+  msgs.push(flexMessage("あなたに合う転職サービスはこちら（" + res.picks.map((p) => p.service.name).join("／") + "）", carousel(cards)));
+  // 最後の吹き出し（紹介リンク）の下に、次の行動へのショートカットを表示
   msgs[msgs.length - 1].quickReply = quickReply([
     ["キャンペーン詳細", "camp", "キャンペーン詳細"],
     ["年収診断", "sal", "年収診断"],

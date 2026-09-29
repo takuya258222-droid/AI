@@ -109,6 +109,23 @@ ok(res.includes("毎月抽選で3名様"), "抽選3名様の明記");
 ok(Boolean(last.messages.at(-1).quickReply?.items?.length), "診断結果の最後にショートカット（クイックリプライ）");
 ok(res.includes("notes/n4d10dab114ec.jpg") || res.includes("notes/n7ff23e3fe450.jpg"), "看護師の体験記が添えられる");
 ok([...store._dump().keys()].some((k) => k === "d:Uuser1"), "フォロー配信の宛先が保存される");
+ok(JSON.stringify(last.messages.at(-1)).includes("r.8to.jp"), "紹介リンクのカードが、最後の吹き出しになっている");
+
+console.log("\n[3b] 保存（KV）が失敗しても、診断結果は必ず届く");
+{
+  const okStore = env.__store;
+  env.__store = { async get() { throw new Error("KV down"); }, async put() { throw new Error("KV limit exceeded"); }, async delete() { throw new Error("KV down"); }, async list() { throw new Error("KV down"); } };
+  let rr = await send([postback("st")]);
+  let lastF = rr.replies[0].body;
+  for (const label of path) {
+    const data = pick(lastF.messages, label);
+    rr = await send([postback(data)]);
+    lastF = rr.replies[0].body;
+  }
+  const t = JSON.stringify(lastF.messages);
+  ok(lastF.messages.length === 4 && t.includes("r.8to.jp"), "KVが全部エラーでも、紹介リンク付きの結果が返る");
+  env.__store = okStore;
+}
 
 console.log("\n[4] エリア追加質問（IT未経験・20代・→首都圏限定サービス）");
 let st = "d|j:it,s:it_none,g:a25,i:i3,p:new,t:now";
