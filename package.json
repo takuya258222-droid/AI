@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "setup:richmenu": "node src/setup-richmenu.js"
+    "setup:browser": "node src/line-setup.js",
+    "setup:api": "node src/line-api-setup.js"
   },
   "dependencies": {
     "@line/bot-sdk": "^9.0.0",
