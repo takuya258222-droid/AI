@@ -1,0 +1,40 @@
+{
+  "agents": [
+    {
+      "id": "agent_1",
+      "name": "リクルートエージェント",
+      "description": "業界最大手！求人数No.1で幅広い業種に対応。初めての転職にもおすすめ。",
+      "imageUrl": "https://placehold.co/1024x1024/0068b7/white?text=リクルート",
+      "affiliateUrl": "https://example.com/affiliate/recruit",
+      "tags": ["全業種対応", "求人数No.1", "初心者向け"],
+      "recommended": true
+    },
+    {
+      "id": "agent_2",
+      "name": "doda",
+      "description": "転職サイトと転職エージェントが一体化。自分のペースで進められる。",
+      "imageUrl": "https://placehold.co/1024x1024/e60012/white?text=doda",
+      "affiliateUrl": "https://example.com/affiliate/doda",
+      "tags": ["自分のペースで", "サイト一体型", "スカウト機能"],
+      "recommended": true
+    },
+    {
+      "id": "agent_3",
+      "name": "マイナビエージェント",
+      "description": "20代・第二新卒に強い！手厚いサポートで書類通過率アップ。",
+      "imageUrl": "https://placehold.co/1024x1024/009e96/white?text=マイナビ",
+      "affiliateUrl": "https://example.com/affiliate/mynavi",
+      "tags": ["20代向け", "手厚いサポート", "第二新卒"],
+      "recommended": true
+    },
+    {
+      "id": "agent_4",
+      "name": "ビズリーチ",
+      "description": "年収600万以上のハイクラス転職に特化。スカウト型で待つだけ。",
+      "imageUrl": "https://placehold.co/1024x1024/1a1a1a/white?text=ビズリーチ",
+      "affiliateUrl": "https://example.com/affiliate/bizreach",
+      "tags": ["ハイクラス", "年収600万~", "スカウト型"],
+      "recommended": false
+    }
+  ]
+}
