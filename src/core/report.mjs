@@ -6,7 +6,7 @@ const DAY = 24 * 3600 * 1000;
 const JOB_LABEL = { nurse: "看護師", care: "介護職", pharm: "薬剤師", child: "保育士", medother: "医療・福祉その他", it_none: "IT未経験", it_jr: "IT経験3年未満", it_sr: "IT経験3年以上", it_free: "IT・フリーランス", bizsales: "営業", retail: "販売・接客", office: "事務・管理", mfg: "製造", eng: "技術職", const: "建築・施工・設備", logi: "物流・ドライバー", gen: "その他", dis: "障がい者雇用", consul: "コンサル", ma: "M&A" };
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "―");
 
-export async function buildReport(store, days = 7, now = Date.now(), { weekly = false } = {}) {
+export async function buildReport(store, days = 7, now = Date.now(), { weekly = false, env = {} } = {}) {
   if (!store) return "集計を使うには、Cloudflare KV（STORE）の設定が必要です。";
   const ct = await counterTotals(store, days, now);
   const { follow = 0, start = 0, done = 0, shot = 0 } = ct;
@@ -30,6 +30,22 @@ export async function buildReport(store, days = 7, now = Date.now(), { weekly = 
   if (jobRows.length) L.push("", `▼診断が多かった職種：${jobRows.map(([k, n]) => `${JOB_LABEL[k] ?? k} ${n}`).join("／")}`);
   L.push("", `今月の抽選応募：${pool.length}名`);
 
+  // 施策の反応（登録の意思ボタン・再表示・面談ポイント・新着note・配信数）
+  const g = (k) => ct[k] ?? 0;
+  if (g("reg_y") + g("reg_m") + g("reg_l") + g("myres") + g("tips") + g("sub_on") + g("taiken") > 0) {
+    L.push("", "▼ボタンの反応", `登録した ${g("reg_y")}｜まだ迷ってる ${g("reg_m")}｜あとで ${g("reg_l")}`, `結果の再表示 ${g("myres")}｜面談・選考ポイント ${g("tips")}｜体験記 ${g("taiken")}｜新着note登録 ${g("sub_on")}`);
+  }
+  if (g("fu_sent") + g("rem_sent") + g("dg_sent") > 0) L.push(`配信：フォロー ${g("fu_sent")}｜締切リマインド ${g("rem_sent")}｜新着note ${g("dg_sent")}`);
+  try {
+    const used = (await store.get(`pb:${jstDate(now).slice(0, 7)}`))?.n ?? 0;
+    const limit = Number(env.PUSH_MONTHLY_LIMIT ?? 200);
+    L.push(`今月のCron配信：${used}／${limit}通${used >= limit * 0.8 ? "（上限が近いです。有料プランの検討を）" : ""}`);
+  } catch { /* 読めなければ省略 */ }
+  if (g("follow_a") + g("follow_b") > 0) {
+    const row = (v) => `${v.toUpperCase()}案：追加${g(`follow_${v}`)}→開始${g(`start_${v}`)}→完了${g(`done_${v}`)}→スクショ${g(`shot_${v}`)}`;
+    L.push("", "▼あいさつ文のA/Bテスト（A=詳しい／B=短い）", row("a"), row("b"));
+  }
+
   if (weekly) {
     const hints = [];
     if (follow >= 5 && start / follow < 0.5) hints.push("診断開始率が低め → あいさつの訴求や、1通目の文面を見直しましょう。");
@@ -50,7 +66,7 @@ export async function runWeekly({ store, client, env, now = Date.now() }) {
   if (await store.get(key)) return { skipped: "already-sent" };
   await store.put(key, { t: now }, 14 * DAY / 1000);
   try {
-    await client.push(env.ADMIN_USER_ID, [{ type: "text", text: await buildReport(store, 7, now, { weekly: true }) }]);
+    await client.push(env.ADMIN_USER_ID, [{ type: "text", text: await buildReport(store, 7, now, { weekly: true, env }) }]);
     return { sent: true };
   } catch (e) {
     return { error: e.status };

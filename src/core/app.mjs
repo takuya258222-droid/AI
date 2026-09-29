@@ -3,8 +3,10 @@ import { makeClient, verifySignature } from "./line.mjs";
 import { handleEvent } from "./handler.mjs";
 import { getStore } from "./store.mjs";
 import { runFollowups } from "./followup.mjs";
+import { runDigest } from "./notefeed.mjs";
+import { loadBudget } from "./budget.mjs";
 import { runWeekly } from "./report.mjs";
-import { bumpTag } from "./stats.mjs";
+import { bumpTag, bumpMany } from "./stats.mjs";
 import { brand } from "./content.mjs";
 import { prefilledChatUrl } from "./tools.mjs";
 
@@ -57,9 +59,15 @@ export async function scheduled(env, now = Date.now()) {
   const store = getStore(env);
   if (!store || !env.LINE_CHANNEL_ACCESS_TOKEN) return { skipped: true };
   const client = makeClient(env);
-  // フォロー配信と週次レポートは互いに影響しないよう、別々に実行する
-  const r = await runFollowups({ store, client, now }).catch((e) => ({ error: String(e).slice(0, 120) }));
+  // 月の配信数を数えながら、優先度の高い順に送る（締切リマインド・フォロー → 新着note）。無料プランの月200通を超えないようにする
+  const budget = await loadBudget(store, env, now);
+  const max = Number(env.CRON_MAX_SENDS ?? 6); // 1回のCronで送る人数（無料プランのCPU時間の制限。有料プランなら増やせる）
+  const r = await runFollowups({ store, client, now, budget, max }).catch((e) => ({ error: String(e).slice(0, 120) }));
+  const d = await runDigest({ store, client, env, now, budget, max }).catch((e) => ({ error: String(e).slice(0, 120) }));
+  await budget.commit();
   const w = await runWeekly({ store, client, env, now }).catch((e) => ({ error: String(e).slice(0, 120) }));
-  console.log(JSON.stringify({ evt: "cron", followup: r, weekly: w }));
-  return { followup: r, weekly: w };
+  const n = (k, v) => Array(Math.max(0, Number(v) || 0)).fill(k);
+  await bumpMany(store, [...n("fu_sent", r.sent), ...n("rem_sent", r.reminded), ...n("dg_sent", d.sent)], now);
+  console.log(JSON.stringify({ evt: "cron", followup: r, digest: d, weekly: w, pushUsed: budget.used(), pushLimit: budget.limit }));
+  return { followup: r, digest: d, weekly: w };
 }

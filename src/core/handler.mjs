@@ -5,9 +5,11 @@ import { decide } from "./matcher.mjs";
 import { questionMessage, nextQuestion, resultMessages, resultFallbackMessages, salaryAskMessage, salaryResultMessage } from "./diagnosis.mjs";
 import {
   welcomeMessages, campaignMessage, stepsMessage, receiptMessages, taikenMessage, knowledgeMessage, faqMenuMessage, faqAnswerMessage,
-  aboutMessage, policyMessage, privacyMessage, homeMessage, fallbackMessages,
+  aboutMessage, policyMessage, privacyMessage, homeMessage, fallbackMessages, regMessages, subOnMessage,
 } from "./messages.mjs";
-import { recordDiagnosis, stopFollowup } from "./followup.mjs";
+import { recordDiagnosis, stopFollowup, stopAll } from "./followup.mjs";
+import { tipsMessage, tipsPickerMessage, hasTips } from "./tips.mjs";
+import { latestNotes, subRecord } from "./notefeed.mjs";
 import { netAskMessage, netResultMessage, prepSheetMessage, planAskMessage, planResultMessage, shareMessage, consultMessage } from "./tools.mjs";
 import { recordEntry, adminCommand } from "./lottery.mjs";
 import { statsBatch } from "./stats.mjs";
@@ -15,6 +17,12 @@ import { buildReport } from "./report.mjs";
 import { softStore } from "./store.mjs";
 
 const text = (t) => ({ type: "text", text: t });
+/** あいさつ文のA/Bテスト用。ユーザーIDから、いつも同じ側（a/b）に決まる（保存不要） */
+export function variantOf(userId = "") {
+  let h = 2166136261;
+  for (const ch of String(userId)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return h % 2 === 0 ? "a" : "b";
+}
 const PRESETS = [[/看護/, { j: "med", s: "nurse" }], [/介護/, { j: "med", s: "care" }], [/薬剤/, { j: "med", s: "pharm" }], [/保育/, { j: "med", s: "child" }], [/エンジニア|\bit\b/i, { j: "it" }], [/コンサル/, { j: "consul" }], [/m[&＆]a|エムアンドエー/i, { j: "ma" }], [/営業/, { j: "sales", s: "bizsales" }], [/製造|工場/, { j: "tech", s: "mfg" }]];
 const TAG_RE = /【([A-Za-z0-9_-]{1,24})】/;
 /** 流入経路つきの入口から診断を始める（職種が分かれば、その質問を飛ばす） */
@@ -23,6 +31,7 @@ async function startFromTag(ctx, userId, tag, raw) {
   stats.addTag(tag, "start");
   if (store && userId && !(await store.get(`u:${userId}`))) await store.put(`u:${userId}`, { tag }, 60 * 24 * 3600);
   stats.add("start");
+  stats.add(`start_${variantOf(userId)}`);
   const preset = PRESETS.find(([re]) => re.test(raw))?.[1] ?? {};
   return [text("ご相談ありがとうございます。30秒診断を始めます。"), nextQuestion(preset, base)];
 }
@@ -34,6 +43,9 @@ const KEYWORDS = [
   [/手取り|月収|手取/, "net"],
   [/管理人|直接相談|個別相談|チャット相談/, "contact"],
   [/スケジュール|いつまで|逆算/, "plan"],
+  [/選考ポイント|見られる|聞くこと|確認すること|面談で聞|面接で聞|質問例|ポイント5つ/, "tips"],
+  [/診断結果|^結果|結果を(見|み)|結果.*(もう一度|再度)/, "myres"],
+  [/新着|note.*(配信|通知)|(配信|通知).*note/, "subon"],
   [/面談準備|準備シート|面接/, "prep"],
   [/シェア|紹介する|友だちに|友達に|教える/, "share"],
   [/コンサル/, "st-consul"],
@@ -80,6 +92,7 @@ function route(action, arg, ctx) {
     case "faq": return { messages: [arg ? faqAnswerMessage(arg) : faqMenuMessage()] };
     case "know": return { messages: [knowledgeMessage(base)] };
     case "taiken": return { messages: [taikenMessage(base)] };
+    case "tips": return { messages: [arg && hasTips(arg) ? tipsMessage(arg) : tipsPickerMessage("tips")] };
     case "about": return { messages: [aboutMessage(base)] };
     case "policy": return { messages: [policyMessage(base)] };
     case "privacy": return { messages: [privacyMessage(base)] };
@@ -90,6 +103,35 @@ function route(action, arg, ctx) {
     case "share": return { messages: [shareMessage()] };
     case "home": return { messages: [homeMessage(base)] };
     default: return { messages: fallbackMessages(base) };
+  }
+}
+
+/** KVなど非同期の処理が要る動作。それ以外は route に任せる */
+async function routeAsync(action, arg, ctx, userId) {
+  const { base, store } = ctx;
+  switch (action) {
+    case "myres": {
+      const rec = userId && store ? await store.get(`d:${userId}`) : null;
+      if (rec?.state) {
+        const a = decode(rec.state);
+        const res = decide(a);
+        if (res.status === "ok") return { messages: resultMessages(a, base), alt: resultFallbackMessages(a), evt: "myres" };
+        return { messages: [questionMessage("r", a, base)] };
+      }
+      return { messages: [text(`診断の記録が見つかりませんでした（診断から${brand.followup.retentionDays}日たつと、保存した内容は削除されます）。\nもう一度、30秒診断をどうぞ。`), questionMessage("j", {}, base)], evt: "start" };
+    }
+    case "taiken": return { messages: [taikenMessage(base, await latestNotes(ctx.env))], evt: "taiken" };
+    case "tips": return { messages: [arg && hasTips(arg) ? tipsMessage(arg) : tipsPickerMessage("tips")], evt: "tips" };
+    case "regy": case "regm": case "regl": return { messages: regMessages(action.slice(3), arg), evt: `reg_${action.slice(3)}` };
+    case "subon": {
+      if (!arg) return { messages: [tipsPickerMessage("sub")] };
+      if (arg !== "all" && !hasTips(arg)) return { messages: [tipsPickerMessage("sub")] };
+      if (!store || !userId) return { messages: [text("ただいま、新着noteの配信をご利用いただけません。noteは、プロフィールからご覧いただけます。")] };
+      const rec = subRecord(arg === "all" ? "" : arg, ctx.now ?? Date.now());
+      await store.put(`sub:${userId}`, rec.value, 180 * 24 * 3600, rec.meta);
+      return { messages: subOnMessage(arg), evt: "sub_on" };
+    }
+    default: return route(action, arg, ctx);
   }
 }
 
@@ -148,21 +190,23 @@ async function dispatch(event, ctx, rawCtx) {
     case "follow": {
       let name;
       try { name = (await client.profile(userId)).displayName; } catch { /* 取得できなくてもOK */ }
+      const variant = variantOf(userId);
       stats.add("follow");
-      return safeReply(ctx, event.replyToken, welcomeMessages(ctx.base, name, { returning: event.follow?.isUnblocked === true }));
+      stats.add(`follow_${variant}`);
+      return safeReply(ctx, event.replyToken, welcomeMessages(ctx.base, name, { returning: event.follow?.isUnblocked === true, variant }));
     }
     case "unfollow":
-      return stopFollowup(store, userId);
+      return stopAll(store, userId);
     case "postback": {
       const { action, arg } = parseData(event.postback?.data);
       let r;
-      try { r = route(action, arg, ctx); } catch (e) {
+      try { r = await routeAsync(action, arg, ctx, userId); } catch (e) {
         console.log(JSON.stringify({ evt: "route_error", action, msg: String(e).slice(0, 200) }));
         r = { messages: fallbackMessages(ctx.base) };
       }
       // 先に返信（診断結果・紹介リンクを確実に届ける）。集計・保存はそのあと
       await safeReply(ctx, event.replyToken, r.messages, r.alt);
-      if (r.evt) stats.add(r.evt);
+      if (r.evt) { stats.add(r.evt); if (["start", "done"].includes(r.evt)) stats.add(`${r.evt}_${variantOf(userId)}`); }
       if (r.record) {
         stats.add(`job_${r.key}`);
         stats.addTag(await sourceOf(store, userId), "done");
@@ -176,6 +220,7 @@ async function dispatch(event, ctx, rawCtx) {
       if (m.type === "image") {
         await safeReply(ctx, event.replyToken, receiptMessages(ctx.base));
         stats.add("shot");
+        stats.add(`shot_${variantOf(userId)}`);
         await recordEntry(store, userId, now);
         stats.addTag(await sourceOf(store, userId), "shot");
         await stopFollowup(store, userId); // 応募済みの方へのフォローは停止
@@ -190,7 +235,7 @@ async function dispatch(event, ctx, rawCtx) {
       const t = norm(raw);
       const isAdmin = Boolean(env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID);
       if (isAdmin && /^(統計|stats)(30)?$/.test(t)) {
-        return safeReply(ctx, event.replyToken, [text(await buildReport(rawCtx.store, t.endsWith("30") ? 30 : 7, now).catch((e) => `集計を読み込めませんでした：${String(e).slice(0, 80)}`))]);
+        return safeReply(ctx, event.replyToken, [text(await buildReport(rawCtx.store, t.endsWith("30") ? 30 : 7, now, { env }).catch((e) => `集計を読み込めませんでした：${String(e).slice(0, 80)}`))]);
       }
       if (isAdmin && /^経路(リンク)?$/.test(t)) {
         return safeReply(ctx, event.replyToken, [text(`流入経路つきのリンク\n${ctx.base}/l/経路名\n職種つき：${ctx.base}/l/経路名?job=nurse\n（job：nurse / care / pharm / child / it / sales / mfg）\n\n例）noteの記事1 → ${ctx.base}/l/note1\n例）Threadsのプロフィール → ${ctx.base}/l/threads\n※経路名は英数字・ハイフン・アンダースコア（24字まで）`)]);
@@ -203,8 +248,8 @@ async function dispatch(event, ctx, rawCtx) {
       const tagMatch = raw.match(TAG_RE);
       if (tagMatch) return safeReply(ctx, event.replyToken, await startFromTag(ctx, userId, tagMatch[1], raw));
       if (t === norm(brand.followup.stopKeyword)) {
-        await stopFollowup(store, userId);
-        return safeReply(ctx, event.replyToken, [text("フォローのメッセージの配信を停止し、保存していた情報を削除しました。\nまた診断したくなったら、いつでもメニューからどうぞ。")]);
+        await stopAll(store, userId);
+        return safeReply(ctx, event.replyToken, [text("フォローのメッセージや、新着noteの配信を停止し、保存していた情報を削除しました。\nまた診断したくなったら、いつでもメニューからどうぞ。")]);
       }
       const hit = KEYWORDS.find(([re]) => re.test(t));
       if (!hit) {
@@ -212,11 +257,11 @@ async function dispatch(event, ctx, rawCtx) {
         return safeReply(ctx, event.replyToken, fallbackMessages(ctx.base));
       }
       let r;
-      try { r = route(hit[1], "", ctx); } catch (e) {
+      try { r = await routeAsync(hit[1], "", ctx, userId); } catch (e) {
         console.log(JSON.stringify({ evt: "route_error", action: hit[1], msg: String(e).slice(0, 200) }));
         r = { messages: fallbackMessages(ctx.base) };
       }
-      if (r.evt) stats.add(r.evt);
+      if (r.evt) { stats.add(r.evt); if (["start", "done"].includes(r.evt)) stats.add(`${r.evt}_${variantOf(userId)}`); }
       return safeReply(ctx, event.replyToken, r.messages);
     }
     default:

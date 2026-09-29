@@ -11,6 +11,7 @@ import {
   bubble, heroImage, bodyBox, footerBox, flexMessage, carousel, progress, histogram, imgUrl, quickReply,
 } from "./flex.mjs";
 import { entryCard } from "./messages.mjs";
+import { hasTips } from "./tips.mjs";
 
 // ------------------------------------------------------------------ 質問カード
 const QUESTIONS = {
@@ -298,11 +299,15 @@ export function resultMessages(a, base) {
   if (rel) msgs.push(rel);
   msgs.push(entryCard(a, base));
   msgs.push(flexMessage("あなたに合う転職サービスはこちら（" + res.picks.map((p) => p.service.name).join("／") + "）", carousel(cards)));
-  // 最後の吹き出し（紹介リンク）の下に、次の行動へのショートカットを表示
+  // 最後の吹き出し（紹介リンク）の下に、登録の意思を伝えるボタンと、次の行動へのショートカットを表示
+  const st = encode(a);
   msgs[msgs.length - 1].quickReply = quickReply([
+    ["登録した", `regy|${st}`, "登録した"],
+    ["まだ迷ってる", `regm|${st}`, "まだ迷ってる"],
+    ["あとで登録する", `regl|${st}`, "あとで登録する"],
+    ["面談・選考のポイント", hasTips(res.key) ? `tips|${res.key}` : "tips", "面談・選考のポイント"],
     ["キャンペーン詳細", "camp", "キャンペーン詳細"],
     ["年収診断", "sal", "年収診断"],
-    ["転職体験記", "taiken", "転職体験記"],
     ["診断をやり直す", "st", "診断をやり直す"],
   ]);
   return msgs;

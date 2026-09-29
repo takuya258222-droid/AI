@@ -8,6 +8,9 @@ import { report } from "../src/core/stats.mjs";
 import { runFollowups } from "../src/core/followup.mjs";
 import { buildReport, runWeekly } from "../src/core/report.mjs";
 import { makeClient } from "../src/core/line.mjs";
+import { loadBudget } from "../src/core/budget.mjs";
+import { runDigest, parseFeed } from "../src/core/notefeed.mjs";
+import { variantOf } from "../src/core/handler.mjs";
 
 const SECRET = "test-secret";
 const ADMIN = "Uadmin";
@@ -173,7 +176,7 @@ ok(r.replies.length === 1, "スタンプにも応答");
 console.log("\n[9] FAQ・各パネル");
 r = await send([postback("faq")]);
 const faqPb = postbacks(r.replies[0].body.messages).filter((p) => p.data.startsWith("faq|"));
-ok(faqPb.length === 6, "FAQ項目が6件");
+ok(faqPb.length === 9, "FAQ項目が9件（登録前の不安3件を追加）");
 for (const p of faqPb) {
   r = await send([postback(p.data)]);
   ok(r.replies.length === 1, `FAQ ${p.data}`);
@@ -198,7 +201,15 @@ ok(JSON.stringify(calls.at(-1).body).includes("rs|j:med"), "結果をもう一�
 out = await runFollowups({ store, client, now: T0 + 25 * 3600 * 1000 });
 ok(out.sent === 0, "2通目はまだ送らない");
 out = await runFollowups({ store, client, now: T0 + 4 * 24 * 3600 * 1000 + 1000 }); // 4日後12:00 JST
-ok(out.sent === 1 && !(await store.get("d:Ufollow")), "約4日後に2通目を送り、以後は送らない");
+ok(out.sent === 1 && (await store.get("d:Ufollow")).stage === 2, "約4日後に2通目を送る");
+calls.length = 0;
+out = await runFollowups({ store, client, now: T0 + 7 * 24 * 3600 * 1000 + 1000 }); // 7日後12:00 JST
+ok(out.sent === 1 && JSON.stringify(calls.at(-1).body).includes("迷っている方へ"), "約7日後に3通目（迷っている方へ）を送る");
+const lastRec = await store.get("d:Ufollow");
+ok(lastRec && lastRec.stage === 3, "3通目のあとも、保存期間内は診断の記録を残す（結果の再表示のため）");
+out = await runFollowups({ store, client, now: T0 + 8 * 24 * 3600 * 1000 });
+ok(out.sent === 0, "3通目のあとは、フォローを送らない");
+await store.delete("d:Ufollow");
 await store.put("d:Unight", { state: "j:office,g:a25,i:i3,p:up,t:now", ts: T0, stage: 0 });
 out = await runFollowups({ store, client, now: T0 + 30 * 3600 * 1000 }); // 翌日 18:00+... => JST 18時
 ok(out.sent === 1, "日中(JST 9〜21時)は送る");
@@ -371,7 +382,7 @@ console.log("\n[14] フォロー配信（Cron）の異常系");
   st = await mk(rec);
   res = await runFollowups({ store: st, client: okClient, now: Date.parse("2026-10-05T15:00:00Z") });
   ok(res.skipped === "quiet-hours", "日本時間の夜間は送らない");
-  res = await runFollowups({ store: { ...st, list: async () => { throw new Error("KV down"); } }, client: okClient, now: noon });
+  res = await runFollowups({ store: { ...st, list: async () => { throw new Error("KV down"); }, listMeta: async () => { throw new Error("KV down"); } }, client: okClient, now: noon });
   ok(res.errors === 1, "KVの一覧取得が失敗しても例外を出さない");
   // (e) Cron全体（KVが壊れていても落ちない）
   const sres = await scheduled({ LINE_CHANNEL_ACCESS_TOKEN: "tok", LINE_API_BASE: `http://127.0.0.1:${PORT}`, __store: { get: async () => { throw new Error("x"); }, put: async () => { throw new Error("x"); }, delete: async () => { throw new Error("x"); }, list: async () => { throw new Error("x"); } } }, noon);
@@ -424,6 +435,173 @@ console.log("\n[15] コンサル・M&Aの選択ボタン（ハイクラス）");
   ok(r.replies.length === 1 && JSON.stringify(r.replies[0].body.messages).includes("STEP 2 / 5"), "「M&A」と送ると、年代の質問から始まる");
   r = await send([textEvt("30秒診断を始める【note9】コンサル")]);
   ok(JSON.stringify(r.replies[0].body.messages).includes("STEP 2 / 5"), "経路つきの入口(コンサル)でも職種を飛ばして開始");
+}
+
+console.log("\n[16] 登録の意思ボタン・結果の再表示・面談ポイント・体験記・新着note配信");
+{
+  const STATE = "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3";
+  const feed = (items) => `<?xml version="1.0"?><rss><channel>${items.map((i) => `<item><title><![CDATA[${i[0]}]]></title><media:thumbnail>https://assets.st-note.com/x/${i[3]}.png?width=800</media:thumbnail><pubDate>${i[1]}</pubDate><link>https://note.com/wise_ivy1277/n/${i[2]}</link></item>`).join("")}</channel></rss>`;
+  const FEED = feed([
+    ["【看護師】夜勤をやめたら年収はどうなる", "Fri, 02 Oct 2026 20:00:00 +0900", "n1", "a"],
+    ["【IT】未経験からエンジニアへ", "Thu, 01 Oct 2026 20:00:00 +0900", "n2", "b"],
+    ["【営業】数字の作り方", "Wed, 30 Sep 2026 20:00:00 +0900", "n3", "c"],
+    ["古い記事【介護】", "Mon, 21 Sep 2026 20:00:00 +0900", "n4", "d"],
+  ]);
+  ok(parseFeed(FEED).length === 4 && parseFeed(FEED)[0].link.endsWith("/n1"), "noteのRSSを解析できる（新しい順）");
+  env.__noteFeed = FEED;
+
+  // (a) 診断結果の下に、登録の意思ボタンと面談ポイント
+  let rr = await send([postback(`d|${STATE}`)]);
+  const qr = JSON.stringify(rr.replies[0].body.messages.at(-1).quickReply);
+  ok(["regy|", "regm|", "regl|", "tips|nurse"].every((x) => qr.includes(x)), "診断結果に「登録した／まだ迷ってる／あとで登録する／面談・選考のポイント」ボタン");
+  ok(rr.replies[0].body.messages.at(-1).quickReply.items.length <= 13, "クイックリプライは13個以内");
+  const stBefore = (await store.get("d:Uuser1"))?.state;
+  ok(stBefore === STATE, "診断の記録が保存される（結果の再表示・リマインド用）");
+
+  // (b) 登録の意思ボタン
+  rr = await send([postback(`regy|${STATE}`)]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("スクリーンショット") && JSON.stringify(rr.replies[0].body.messages).includes("全員へのプレゼントではありません"), "「登録した」→ スクショ送付と抽選応募を案内（全員プレゼントではない旨つき）");
+  rr = await send([postback(`regm|${STATE}`)]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("断ったり") && JSON.stringify(rr.replies[0].body.messages).includes("tips|nurse"), "「まだ迷ってる」→ 断ってもよいこと・不安のQ&A・面談ポイントを案内");
+  rr = await send([postback(`regl|${STATE}`)]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("結果"), "「あとで登録する」→ 「結果」でいつでも再表示できると案内");
+  const day = await store.get(`s:${new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)}`);
+  ok(day?.reg_y >= 1 && day?.reg_m >= 1 && day?.reg_l >= 1, "登録の意思ボタンの回数が集計される");
+
+  // (c) 結果の再表示
+  rr = await send([textEvt("結果")]);
+  ok(rr.replies[0].body.messages.length === 4 && JSON.stringify(rr.replies[0].body.messages).includes("r.8to.jp"), "「結果」と送ると、診断結果と紹介リンクを再表示");
+  rr = await send([postback("myres")]);
+  ok(rr.replies[0].body.messages.length === 4, "メニューの「診断結果をもう一度見る」でも再表示");
+  await store.delete("d:Uuser1");
+  rr = await send([textEvt("診断結果を見たい")]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("記録が見つかりません") && JSON.stringify(rr.replies[0].body.messages).includes("STEP 1"), "記録が無いときは、もう一度診断を案内");
+  await store.put("d:Uuser1", { state: STATE, ts: Date.now(), stage: 0 });
+
+  // (d) 面談・選考ポイント
+  rr = await send([postback("tips|nurse")]);
+  const tj = JSON.stringify(rr.replies[0].body.messages);
+  ok(tj.includes("看護師：面談・面接で確認したい5つ") && tj.includes("subon|nurse"), "看護師は「面談・面接で確認したい5つ」");
+  rr = await send([postback("tips|it_sr")]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("選考で見られやすいポイント5つ"), "IT経験者は「選考で見られやすいポイント5つ」");
+  rr = await send([textEvt("選考ポイントを教えて")]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("tips|consul"), "「選考ポイント」と送ると、職種の選択画面");
+  rr = await send([postback("tips|zzz")]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("tips|nurse"), "不正な職種でも、選択画面に戻る");
+
+  // (e) 体験記カードに、最新のnoteが並ぶ
+  rr = await send([postback("taiken")]);
+  const tk = JSON.stringify(rr.replies[0].body.messages);
+  ok(tk.includes("https://note.com/wise_ivy1277/n/n1") && tk.includes("NEW｜10/2") && tk.includes("subon|all"), "体験記に最新のnote（RSS）と、新着note配信ボタンが出る");
+  env.__noteFeed = "";
+  rr = await send([postback("taiken")]);
+  ok(rr.replies[0].body.messages[0].contents.contents.length >= 8, "RSSが取れないときは、従来の事例カードだけで表示");
+  env.__noteFeed = FEED;
+
+  // (f) 新着noteの購読
+  rr = await send([postback("subon|nurse")]);
+  ok((await store.get("sub:Uuser1"))?.k === "nurse" && JSON.stringify(rr.replies[0].body.messages).includes("配信を登録しました"), "新着noteの配信を登録できる（看護師）");
+  rr = await send([postback("subon|zzz")]);
+  ok(JSON.stringify(rr.replies[0].body.messages).includes("subon|nurse"), "不正な職種は、選択画面に戻る");
+  const subPut = (u, k) => store.put(`sub:${u}`, { k, ts: Date.now() }, 0, { k, ts: Date.now(), dg: "" });
+  await subPut("Usub2", "");
+  await subPut("Usub3", "consul");
+
+  // (g) 週次配信: 土曜10時に、職種に合う新着だけ送る
+  const SAT = Date.UTC(2026, 9, 3, 1, 0, 0); // 土曜 日本時間10:00
+  await store.delete("nd:last");
+  const cl = makeClient(env);
+  calls.length = 0;
+  let budget = await loadBudget(store, env, SAT);
+  let dg = await runDigest({ store, client: cl, env, now: SAT, budget });
+  const pushed = calls.filter((c) => c.path === "/v2/bot/message/push");
+  ok(dg.sent === 2 && dg.skippedNoMatch === 1, `購読者のうち、合う新着がある2名に送り、合わない1名（コンサル）には送らない（sent=${dg.sent}）`);
+  ok(pushed.some((c) => c.body.to === "Uuser1" && JSON.stringify(c.body).includes("/n1") && !JSON.stringify(c.body).includes("/n2")), "看護師の購読者には看護師の記事だけ");
+  ok(pushed.some((c) => c.body.to === "Usub2" && JSON.stringify(c.body).includes("/n2") && JSON.stringify(c.body).includes("/n3") && !JSON.stringify(c.body).includes("/n4")), "「すべて」の購読者には、前回の配信以降（直近7日）の新着だけ");
+  ok(JSON.stringify(pushed[0].body).includes("配信停止") && JSON.stringify(pushed[0].body).includes("PR"), "配信の末尾に、停止方法とPRの注記");
+  await budget.commit();
+  calls.length = 0;
+  dg = await runDigest({ store, client: cl, env, now: SAT + 3600e3, budget: await loadBudget(store, env, SAT) });
+  ok(dg.sent === 0 && calls.filter((c) => c.path === "/v2/bot/message/push").length === 0, "同じ週は、送信済みの人には二重に配信しない");
+  dg = await runDigest({ store, client: cl, env, now: SAT + 3 * 24 * 3600 * 1000, budget });
+  ok(dg.skipped === "not-saturday-10-15", "土曜10〜15時台以外は配信しない");
+  dg = await runDigest({ store, client: cl, env, now: SAT + 7 * 3600e3, budget });
+  ok(dg.skipped === "not-saturday-10-15", "土曜の夕方（16時以降）は配信しない");
+
+  // (h) 月の配信数の上限
+  const tiny = await loadBudget(memoryStore(), { PUSH_MONTHLY_LIMIT: 35, PUSH_RESERVE: 30 }, SAT);
+  ok(tiny.take(5) && !tiny.take(1) && tiny.left() === 0, "上限（35通−運営者用30通）を超える配信は、枠が取れない");
+  tiny.refund(2);
+  ok(tiny.take(2), "送信に失敗したぶんは、枠を戻せる");
+  const bstore = memoryStore();
+  const b1 = await loadBudget(bstore, env, SAT); b1.take(7); await b1.commit();
+  ok((await loadBudget(bstore, env, SAT)).used() === 7 && (await loadBudget(bstore, env, SAT + 40 * 24 * 3600 * 1000)).used() === 0, "配信数は月ごとに数え、翌月は0から");
+  await store.delete("nd:2026-10-03"); await store.delete("nd:last");
+  await subPut("Uuser1", "nurse"); await subPut("Usub2", ""); // 送信済みの印をリセット
+  calls.length = 0;
+  dg = await runDigest({ store, client: cl, env, now: SAT, budget: await loadBudget(memoryStore(), { PUSH_MONTHLY_LIMIT: 31, PUSH_RESERVE: 30 }, SAT) });
+  ok(dg.sent === 1 && dg.skippedBudget >= 1, "枠が足りないときは、送れる分だけ送り、残りは送らない");
+  // 1回のCronで送る人数の上限（残りは次の時間に）
+  await store.delete("nd:2026-10-03"); await store.delete("nd:last");
+  await subPut("Uuser1", "nurse"); await subPut("Usub2", "");
+  for (let i = 0; i < 8; i++) await subPut(`Ubulk${i}`, "");
+  calls.length = 0;
+  dg = await runDigest({ store, client: cl, env, now: SAT, budget: await loadBudget(memoryStore(), env, SAT), max: 4 });
+  ok(dg.sent === 4 && dg.skippedCap > 0, "1回のCronで送る人数には上限があり、残りは後回し");
+  dg = await runDigest({ store, client: cl, env, now: SAT + 3600e3, budget: await loadBudget(memoryStore(), env, SAT), max: 4 });
+  const dg2 = await runDigest({ store, client: cl, env, now: SAT + 2 * 3600e3, budget: await loadBudget(memoryStore(), env, SAT), max: 20 });
+  ok(dg.sent === 4 && dg.sent + dg2.sent >= 6, "次の時間に、残りの人へ続きを送る（送信済みの人には送らない）");
+
+  // (i) 締切リマインド（月末の最後の3日間）
+  const EOM = Date.UTC(2026, 9, 29, 3, 0, 0); // 10月29日 12:00 JST（残り2日）
+  const rst = memoryStore();
+  await rst.put("d:Ur1", { state: STATE, ts: EOM - 5 * 24 * 3600e3, stage: 3 }, 0, { ts: EOM - 5 * 24 * 3600e3, stage: 3, rem: "" });
+  await rst.put("d:Ur2", { state: STATE, ts: EOM - 30 * 3600e3, stage: 0 }, 0, { ts: EOM - 30 * 3600e3, stage: 0, rem: "" });
+  await rst.put("d:Ur3", { state: STATE, ts: EOM - 5 * 3600e3, stage: 0 }, 0, { ts: EOM - 5 * 3600e3, stage: 0, rem: "" });
+  calls.length = 0;
+  let fr = await runFollowups({ store: rst, client: cl, now: EOM, budget: await loadBudget(rst, env, EOM) });
+  const rp = calls.filter((c) => c.path === "/v2/bot/message/push");
+  ok(fr.reminded === 2 && rp.length === 2 && rp.every((c) => JSON.stringify(c.body).includes("応募締切")), "月末の最後の3日間は、応募していない人に締切リマインドを送る");
+  ok(!rp.some((c) => c.body.to === "Ur3"), "診断してから20時間たっていない人には送らない");
+  ok(JSON.stringify(rp[0].body).includes("あと2日") && JSON.stringify(rp[0].body).includes("全員へのプレゼントではありません"), "残り日数と「全員プレゼントではない」旨を表示");
+  calls.length = 0;
+  fr = await runFollowups({ store: rst, client: cl, now: EOM + 3600e3, budget: await loadBudget(rst, env, EOM) });
+  ok(fr.reminded === 0, "同じ月は、リマインドを2回送らない");
+  fr = await runFollowups({ store: rst, client: cl, now: Date.UTC(2026, 9, 15, 3, 0, 0), budget: await loadBudget(rst, env, EOM) });
+  ok(fr.reminded === 0, "月の途中(15日)には、リマインドを送らない");
+  const rst2 = memoryStore();
+  for (const u of ["Ux1", "Ux2", "Ux3"]) await rst2.put(`d:${u}`, { state: STATE, ts: EOM - 5 * 24 * 3600e3, stage: 3 }, 0, { ts: EOM - 5 * 24 * 3600e3, stage: 3, rem: "" });
+  fr = await runFollowups({ store: rst2, client: cl, now: EOM, budget: await loadBudget(memoryStore(), { PUSH_MONTHLY_LIMIT: 32, PUSH_RESERVE: 30 }, EOM) });
+  ok(fr.reminded === 2 && fr.skippedBudget === 1, "配信数の上限に達したら、送らずに止める");
+
+  const rst3 = memoryStore();
+  for (let i = 0; i < 9; i++) await rst3.put(`d:Uc${i}`, { state: STATE, ts: EOM - 5 * 24 * 3600e3, stage: 3 }, 0, { ts: EOM - 5 * 24 * 3600e3, stage: 3, rem: "" });
+  fr = await runFollowups({ store: rst3, client: cl, now: EOM, budget: await loadBudget(memoryStore(), env, EOM), max: 4 });
+  ok(fr.reminded === 4 && fr.skippedCap === 5, "1回のCronで送る人数には上限があり、残りは次の時間に送る");
+  fr = await runFollowups({ store: rst3, client: cl, now: EOM + 3600e3, budget: await loadBudget(memoryStore(), env, EOM), max: 4 });
+  ok(fr.reminded === 4, "次の時間に、残りの人へ続きを送る");
+
+  // (j) 配信停止で、診断の記録も購読も削除
+  r = await send([textEvt("配信停止")]);
+  ok(!store._dump().has("sub:Uuser1") && !store._dump().has("d:Uuser1") && JSON.stringify(r.replies[0].body.messages).includes("新着note"), "「配信停止」で、新着noteの購読も診断の記録も削除");
+
+  // (k) あいさつ文のA/Bテスト
+  const vs = new Set(["Ua", "Ub", "Uc", "Ud", "Ue", "Uf", "Ug", "Uh", "Ui", "Uj"].map(variantOf));
+  ok(vs.has("a") && vs.has("b") && variantOf("Uabc") === variantOf("Uabc"), "ユーザーIDから、A/Bのどちらかに決まる（同じ人は常に同じ）");
+  const uB = ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8"].find((u) => variantOf(u) === "b");
+  const evB = { ...userEvt({ type: "follow", replyToken: "rtB" }), source: { type: "user", userId: uB } };
+  r = await send([evB]);
+  ok(JSON.stringify(r.replies[0].body.messages[0]).includes("失敗しないために") && !JSON.stringify(r.replies[0].body.messages[0]).includes("営業9年"), "B案は、短いあいさつ文");
+  const uA = ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8"].find((u) => variantOf(u) === "a");
+  r = await send([{ ...userEvt({ type: "follow", replyToken: "rtA" }), source: { type: "user", userId: uA } }]);
+  ok(JSON.stringify(r.replies[0].body.messages[0]).includes("営業9年"), "A案は、経歴つきのあいさつ文");
+  const ab = await store.get(`s:${new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10)}`);
+  ok(ab?.follow_a >= 1 && ab?.follow_b >= 1, "A/B別の友だち追加数が集計される");
+
+  // (l) 週次レポートに新しい指標が出る
+  const rep = await buildReport(store, 7, Date.now(), { weekly: true, env });
+  ok(rep.includes("ボタンの反応") && rep.includes("A/Bテスト") && rep.includes("Cron配信"), "レポートに、ボタンの反応・A/Bテスト・配信数が出る");
+  delete env.__noteFeed;
 }
 
 server.close();

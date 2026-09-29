@@ -6,7 +6,9 @@ import path from "node:path";
 import { questionMessage, resultMessages, resultFallbackMessages, salaryAskMessage, salaryResultMessage } from "../src/core/diagnosis.mjs";
 import * as M from "../src/core/messages.mjs";
 import * as T from "../src/core/tools.mjs";
-import { followupMessage } from "../src/core/followup.mjs";
+import { followupMessage, remindMessage } from "../src/core/followup.mjs";
+import { tipsMessage, tipsPickerMessage, TIP_KEYS } from "../src/core/tips.mjs";
+import { digestMessage, parseFeed, latestNoteBubble } from "../src/core/notefeed.mjs";
 import { INCOMES } from "../src/core/labels.mjs";
 import { decode, encode, parseData, nextKey } from "../src/core/state.mjs";
 import { decide } from "../src/core/matcher.mjs";
@@ -128,9 +130,26 @@ for (const i of INCOMES) { misc[`salary:${i.v}`] = [salaryResultMessage(i.v, BAS
 for (const k of ["m3", "m6", "y1"]) misc[`plan:${k}`] = [T.planResultMessage(k)];
 for (const [name, msgs] of Object.entries(misc)) checkReply(msgs, name);
 
+// 施策の新しいメッセージ（面談ポイント・登録の意思ボタン・リマインド・新着note）
+{
+  checkReply([tipsPickerMessage("tips")], "tips-picker");
+  checkReply([tipsPickerMessage("sub")], "sub-picker");
+  for (const k of TIP_KEYS) checkReply([tipsMessage(k)], `tips:${k}`);
+  for (const kind of ["y", "m", "l"]) for (const st of ["j:med,s:nurse,g:a30,i:i5,p:wl,t:m3", "", "j:hacker"]) checkReply(M.regMessages(kind, st), `reg${kind} ${st}`);
+  for (const k of [...TIP_KEYS, "all", "zzz"]) checkReply(M.subOnMessage(k), `subon:${k}`);
+  const FEED = `<rss><channel><item><title>【看護師】テスト記事</title><media:thumbnail>https://assets.st-note.com/a.png?width=800</media:thumbnail><pubDate>Fri, 02 Oct 2026 20:00:00 +0900</pubDate><link>https://note.com/wise_ivy1277/n/n1</link></item><item><title>長いタイトル${"あ".repeat(200)}</title><pubDate>Fri, 02 Oct 2026 19:00:00 +0900</pubDate><link>https://note.com/wise_ivy1277/n/n2</link></item></channel></rss>`;
+  const items = parseFeed(FEED);
+  checkReply([digestMessage(items)], "digest");
+  checkReply([M.taikenMessage(BASE, items)], "taiken+latest");
+  checkReply([M.taikenMessage(BASE)], "taiken");
+  checkReply([latestNoteBubble(items[1]) && { type: "flex", altText: "x", contents: latestNoteBubble(items[1]) }], "note-bubble-nothumb");
+  for (const d of [0, 1, 2]) checkReply([remindMessage(d, "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3")], `remind${d}`);
+  for (const [n, v] of [["a", "a"], ["b", "b"]]) checkReply(M.welcomeMessages(BASE, "テスト太郎", { variant: v }), `welcome-${n}`);
+}
+
 // フォロー配信（診断済みの人／state が壊れている人）
 for (const st of [null, "", "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3", "j:hacker", "j:it,s:it_none,g:a25,i:i3,p:new,t:now,r:kanto"]) {
-  for (const stage of [0, 1]) {
+  for (const stage of [0, 1, 2]) {
     try { checkReply([followupMessage(stage, st)], `followup${stage} ${st}`); } catch (e) { bad(`followup${stage} ${st}`, `throws: ${e.message}`); }
   }
 }

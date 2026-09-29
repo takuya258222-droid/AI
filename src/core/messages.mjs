@@ -1,5 +1,9 @@
 // 診断以外のメッセージ（あいさつ・キャンペーン・体験記・FAQ・信頼情報など）
-import { brand, campaign, notes } from "./content.mjs";
+import { brand, campaign, notes, tips } from "./content.mjs";
+import { keyOf } from "./matcher.mjs";
+import { decode } from "./state.mjs";
+import { hasTips } from "./tips.mjs";
+import { latestNoteBubble } from "./notefeed.mjs";
 import { INCOME_SOURCE } from "./labels.mjs";
 import {
   C, text, box, sep, spacer, uri, postback, cta, ghost, linkBtn, eyebrow, badge, checkRow, dotRow, stepRow, panel,
@@ -19,10 +23,12 @@ const FEATURES = [
   ["自動フォロー・相談", "診断の結果はあとから見直せます。お問い合わせはこのトークへ"],
 ];
 
-export function welcomeMessages(base, name, { returning = false } = {}) {
+export function welcomeMessages(base, name, { returning = false, variant = "a" } = {}) {
   const who = name ? `${clip(name, 12)}さん、` : "";
   const hello = returning
     ? `${who}おかえりなさい。\nまたお会いできて嬉しいです。\n\n診断は何度でも、無料でやり直せます。`
+    : variant === "b"
+    ? `${who}友だち追加ありがとうございます。\n運営のなぎです。\n\n転職サービス選びで、失敗しないために。\n30秒・タップだけで、あなたに合うサービスを、理由つきで2〜3社に絞ってお届けします（診断は無料）。\n\n👇 まずは、下のボタンから。`
     : `${who}友だち追加ありがとうございます。\n運営のなぎです。\n元転職エージェントで、営業9年・支援成約800名・相談8,000名超。今は人材紹介会社の立ち上げ支援をしています。\n\n「転職エージェントって、どこも同じでしょ？」\n実は、向き不向きがはっきり分かれます。合わないサービスに登録して時間を使うのは、もったいない。\n\nこのLINEは、あなたの職種・年代・年収帯に合うサービスだけを、選んだ理由つきで2〜3社に絞ってお届けします。`;
   const b = bubble({
     hero: heroImage(imgUrl(base, "welcome.jpg")),
@@ -156,7 +162,7 @@ function caseBubble(n, base) {
   });
 }
 
-export function taikenMessage(base) {
+export function taikenMessage(base, latest = []) {
   const m = notes.magazine;
   const first = bubble({
     hero: heroImage(imgUrl(base, "taiken.jpg")),
@@ -174,6 +180,7 @@ export function taikenMessage(base) {
     footer: footerBox([
       cta("マガジンをまとめて読む", uri("マガジンを読む", m.url)),
       linkBtn("運営者のnoteを見る", uri("運営者のnote", brand.note.profileUrl)),
+      linkBtn("新着noteをLINEで受け取る", postback("新着noteを受け取る", "subon|all", "新着noteを受け取る")),
     ]),
   });
   const last = bubble({
@@ -188,7 +195,10 @@ export function taikenMessage(base) {
       { justifyContent: "center" }
     ),
   });
-  return flexMessage("転職体験記（noteマガジン）", carousel([first, ...notes.cases.map((n) => caseBubble(n, base)), last]));
+  // 最新のnote記事（RSS）があれば先に並べる。なければ従来の事例カードのみ
+  const fresh = latest.slice(0, 5).map(latestNoteBubble);
+  const cases = notes.cases.slice(0, fresh.length ? 5 : 10).map((n) => caseBubble(n, base));
+  return flexMessage("転職体験記・最新のnote", carousel([first, ...fresh, ...cases, last]));
 }
 
 // ------------------------------------------------------------------ 転職ノウハウ
@@ -230,6 +240,9 @@ export const FAQ = {
   multi: ["複数のサービスに登録してもいい？", "はい。2〜3社に登録して、求人や担当者との相性を比べることもできます。それぞれの面談日程は、余裕をもって調整するのがおすすめです。"],
   soon: ["今すぐ転職しなくても大丈夫？", "大丈夫です。情報収集の段階でも、相談だけの利用ができるサービスがあります。診断で「まずは情報収集から」を選ぶと、そうした選択肢もご案内します。"],
   how: ["診断結果は、どう決まっている？", "ご回答（職種・年代・年収帯・重視すること）と、各サービスの公開情報（対象職種・対象年代・エリア・雇用形態など）との適合度で選んでいます。対象外の方には表示しません。詳しくは「選定基準」をご覧ください。"],
+  working: ["在職中でも登録できる？", "はい。在職中の方も多く利用しています。面談の日程は、平日の夜・土日・オンラインなど、調整できるサービスが多いです（詳しくは各サービスへご相談ください）。退職の時期は、内定が出てから決められます。"],
+  decline: ["面談のあと、断ってもいい？", "はい。紹介された求人に応募するかどうかは、ご自身で決められます。合わないと感じたら、断ったり、利用をやめたりして大丈夫です。"],
+  resume: ["履歴書や職務経歴書は、先に必要？", "登録・面談の時点では、なくても相談できることが多いです（サービスにより異なります）。応募が決まる段階で、担当者と一緒に整えていくのが一般的です。"],
   data: ["個人情報は、どう扱われる？", "診断の回答は、結果の表示にのみ使います。トークの内容（画像を含む）は、お問い合わせ対応とキャンペーンの確認・当選連絡のために運営が確認します。詳しくは「プライバシー・広告表記」をご覧ください。"],
 };
 
@@ -311,7 +324,10 @@ export function privacyMessage(base) {
       text("キャンペーンの応募記録", { size: "xs", weight: "bold", color: C.goldDeep, margin: "md" }),
       text("抽選と当選のご連絡のために、ユーザーID・応募月・応募回数を、最長150日間保存します。", { size: "xs", margin: "xs" }),
       text("フォローのメッセージ", { size: "xs", weight: "bold", color: C.goldDeep, margin: "md" }),
-      text(`診断後に、お役立ち情報をお送りする場合があります。「${brand.followup.stopKeyword}」と送信すると停止し、保存した情報も削除します。`, { size: "xs", margin: "xs" }),
+      text(`診断後に、お役立ち情報や、キャンペーンの締切のご案内をお送りする場合があります。このために、ユーザーIDと診断の区分を最大${brand.followup.retentionDays}日間保存し、「診断結果をもう一度見る」にも使います。`, { size: "xs", margin: "xs" }),
+      text("新着noteの配信", { size: "xs", weight: "bold", color: C.goldDeep, margin: "md" }),
+      text("ご希望の方に限り、ユーザーIDと希望の職種区分を保存し、週1回まで新着noteをお送りします。", { size: "xs", margin: "xs" }),
+      text(`「${brand.followup.stopKeyword}」と送信すると、これらの配信をすべて停止し、保存した情報も削除します。`, { size: "xs", margin: "xs" }),
     ]),
     footer: footerBox([ghost("詳しい内容（Webページ）", uri("詳しい内容", `${base}${brand.legalPath}`), { size: "xs", padding: "10px" })]),
   });
@@ -346,7 +362,11 @@ export function homeMessage(base) {
       spacer("sm"),
       ghost("抽選キャンペーン", postback("キャンペーン", "camp", "キャンペーン詳細")),
       spacer("sm"),
-      ghost("転職体験記", postback("転職体験記", "taiken", "転職体験記")),
+      ghost("診断結果をもう一度見る", postback("診断結果", "myres", "診断結果をもう一度見る")),
+      spacer("sm"),
+      ghost("職種別：面談・選考のポイント", postback("面談・選考のポイント", "tips", "面談・選考のポイント")),
+      spacer("sm"),
+      ghost("転職体験記・最新のnote", postback("転職体験記", "taiken", "転職体験記")),
       spacer("sm"),
       ghost("手取り・月収の目安", postback("手取り", "net", "手取り・月収の目安")),
       spacer("sm"),
@@ -373,6 +393,37 @@ export function fallbackMessages(base) {
       },
     },
   ];
+}
+
+// ------------------------------------------------------------------ 登録の意思ボタン／新着note配信
+/** 「登録した／まだ迷ってる／あとで登録する」を押したときの返信 */
+export function regMessages(kind, stateStr) {
+  const k = keyOf(decode(stateStr));
+  const tipsData = hasTips(k) ? `tips|${k}` : "tips";
+  const T = (t, items) => [{ type: "text", text: t, quickReply: quickReply(items) }];
+  if (kind === "y") {
+    return T(
+      "登録おつかれさまです！\n最後に、登録完了画面のスクリーンショットを、このトークに送ってください。毎月の抽選（3名様に PayPay 500円分）に応募できます。\n\n※お名前・電話番号・メールアドレスが写る場合は、その部分を隠してお送りください。\n※登録・応募された方全員へのプレゼントではありません。",
+      [["登録・応募の流れ", "steps", "登録後の流れ"], ["キャンペーン詳細", "camp", "キャンペーン詳細"], ["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"]]
+    );
+  }
+  if (kind === "m") {
+    return T(
+      "迷うのは、自然なことです。\nまずは1社だけ、話を聞いてみる形でも大丈夫です。合わなければ、断ったり、やめたりしても構いません（利用は無料です）。\n\n気になる点があれば、下のボタンからどうぞ。",
+      [["よくある不安を見る", "faq", "よくある質問"], ["面談・選考のポイント", tipsData, "面談・選考のポイント"], ["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"], ["管理人に相談", "contact", "管理人に相談"]]
+    );
+  }
+  return T(
+    "了解です。登録できたら、完了画面のスクリーンショットを送ってください。\nいつでも「結果」と送ると、診断結果と紹介リンクをもう一度お見せします。",
+    [["結果をもう一度見る", `rs|${stateStr}`, "結果をもう一度見る"], ["登録・応募の流れ", "steps", "登録後の流れ"]]
+  );
+}
+
+/** 新着note配信の登録完了 */
+export function subOnMessage(key) {
+  const label = tips.jobs[key]?.label;
+  const what = label ? `「${label}」の新着` : "新着";
+  return [{ type: "text", text: `新着noteの配信を登録しました。\n週1回（土曜の朝10時ごろ）、${what}があるときだけ、お届けします。\n\n止めるときは「${brand.followup.stopKeyword}」と送信してください。\n※note内に、紹介リンク（PR）を含む場合があります。` }];
 }
 
 export { INCOME_SOURCE };
