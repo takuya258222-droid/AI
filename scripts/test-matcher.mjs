@@ -44,6 +44,15 @@ function check(a, res) {
   if (ids.includes("workstaff_navi") && a.p !== "haken") fail("workstaff without haken");
   if (key === "const" && ["a20", "a25", "a30"].includes(a.g) && ids[0] !== "assign") fail("const must start with assign");
   if (a.p === "haken" && ["office", "logi", "retail"].includes(key) && !ids.includes("workstaff_navi")) fail("haken should show workstaff");
+  // 直接雇用（正社員）寄せ: 物流・製造・技術・建築は、ASSIGN・第二新卒neoを案内する（派遣希望の人は除く）
+  if (["logi", "mfg", "eng", "const"].includes(key) && a.p !== "haken") {
+    if (["a20", "a25", "a30"].includes(a.g) && !ids.includes("assign")) fail("direct: assign missing");
+    if (["a20", "a25"].includes(a.g) && !ids.includes("daini_neo")) fail("direct: neo missing");
+    if (["a20", "a25", "a30"].includes(a.g) && ids.slice(0, 2).includes("posiwill") && key !== "logi") fail("direct: posiwill in main");
+    if (["a20", "a25"].includes(a.g) && ids.slice(0, 2).includes("posiwill")) fail("direct: posiwill in main (20s)");
+  }
+  if (key === "mfg" && !ids.some((id) => ["factory_world", "toyota_kikan"].includes(id))) fail("mfg must keep a factory site");
+  if (a.p === "haken" && ["logi", "mfg"].includes(key) && !ids.includes("workstaff_navi")) fail("haken should keep workstaff");
   if (ids.length < 2 && key !== "child") small[key] = (small[key] || 0) + 1;
   if (key === "it_none" && a.g === "a35" && ids.some((i) => ["uzuzit", "projin"].includes(i))) fail("it_none 35+");
 }

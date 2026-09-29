@@ -1,5 +1,5 @@
 {
-  "_readme": "サービスDB(ソース)。urlは '@threds:サービス名' でスプレッドシートのthredsタブから scripts/sync-links.py が実URLに置換して config/services.json を生成する。ages=対象年代(a20/a25/a30/a35) areas=必須エリア(kanto/kansai/aichi) require=表示条件 fit=職種キー別の適合度 pri=重視項目ごとの加点 explore=『まず相談』枠の候補 confidence=verified(公式/複数情報で確認) medium(名称同定に軽い不確実性) sheet-only(シート記載のみ) challenge=通常ランキングには入らず、条件を満たす場合のみ3枚目『挑戦枠』として表示する。 requireExempt=指定キーではrequireを免除。priorityのhakenは『派遣で働きたい』。",
+  "_readme": "サービスDB(ソース)。urlは '@threds:サービス名' でスプレッドシートのthredsタブから scripts/sync-links.py が実URLに置換して config/services.json を生成する。ages=対象年代(a20/a25/a30/a35) areas=必須エリア(kanto/kansai/aichi) require=表示条件 fit=職種キー別の適合度 pri=重視項目ごとの加点 explore=『まず相談』枠の候補 confidence=verified(公式/複数情報で確認) medium(名称同定に軽い不確実性) sheet-only(シート記載のみ) challenge=通常ランキングには入らず、条件を満たす場合のみ3枚目『挑戦枠』として表示する。 requireExempt=指定キーではrequireを免除。priorityのhakenは『派遣で働きたい』。 priByKey=職種キー×重視項目ごとの加点/減点（例: 派遣希望の人には正社員向けサービスの順位を下げる）。",
   "services": [
     {
       "id": "hoikubatake",
@@ -599,10 +599,12 @@
       "fit": {
         "bizsales": 60,
         "office": 40,
-        "eng": 40,
+        "eng": 100,
         "gen": 40,
         "it_sr": 40,
-        "const": 100
+        "const": 100,
+        "logi": 125,
+        "mfg": 125
       },
       "pri": {
         "up": 35,
@@ -611,8 +613,22 @@
       "confidence": "verified",
       "enabled": true,
       "requireExempt": [
-        "const"
-      ]
+        "const",
+        "logi",
+        "mfg",
+        "eng"
+      ],
+      "priByKey": {
+        "logi": {
+          "haken": -60
+        },
+        "mfg": {
+          "haken": -60
+        },
+        "eng": {
+          "haken": -60
+        }
+      }
     },
     {
       "id": "samurai",
@@ -1061,7 +1077,11 @@
       ],
       "fit": {
         "any": 55,
-        "retail": 70
+        "retail": 70,
+        "logi": 130,
+        "mfg": 130,
+        "eng": 100,
+        "const": 75
       },
       "exclude": [
         "nurse",
@@ -1072,16 +1092,28 @@
         "dis",
         "it_jr",
         "it_sr",
-        "it_free",
-        "mfg",
-        "logi"
+        "it_free"
       ],
       "pri": {
         "new": 25,
         "fit": 10
       },
       "confidence": "verified",
-      "enabled": true
+      "enabled": true,
+      "priByKey": {
+        "logi": {
+          "haken": -60
+        },
+        "mfg": {
+          "haken": -60
+        },
+        "eng": {
+          "haken": -60
+        },
+        "const": {
+          "haken": -60
+        }
+      }
     },
     {
       "id": "nekonote",

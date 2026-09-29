@@ -5,6 +5,7 @@ import { incomeRank, jobShort, ageLabel, priorityLabel } from "./labels.mjs";
 
 const SPECIALIST_KEYS = new Set(["nurse", "care", "pharm", "child", "dis"]);
 const ROLE_LIMIT = { child: 1 }; // 保育は1社に厳選、それ以外は2社
+const FACTORY_SITES = new Set(["factory_world", "toyota_kikan"]); // 工場・期間工系（製造では必ず1つは残す）
 
 export const ALL_SERVICES = services.services;
 
@@ -45,7 +46,7 @@ export function isEligible(s, a, key) {
 }
 
 function scoreOf(s, a, key) {
-  let sc = fitOf(s, key) + (s.pri?.[a.p] ?? 0);
+  let sc = fitOf(s, key) + (s.pri?.[a.p] ?? 0) + (s.priByKey?.[key]?.[a.p] ?? 0);
   if (s.areaSoft && a.r) sc += s.areaSoft[a.r] ?? 0;
   if (a.t === "info" && s.explore) sc += 10;
   return sc;
@@ -80,6 +81,12 @@ export function decide(a) {
   if (!a.r && main.some((p) => p.s.areas)) return { status: "need_area" };
 
   const picks = main.map((p, i) => ({ service: p.s, role: i === 0 ? "best" : "also", score: p.score }));
+
+  // 製造は、正社員・直接雇用のエージェント（ASSIGN・第二新卒neo）を優先しつつ、工場系サービスも1つは案内する
+  if (key === "mfg" && !picks.some((x) => FACTORY_SITES.has(x.service.id))) {
+    const f = ranked.find((p) => FACTORY_SITES.has(p.s.id));
+    if (f) picks.push({ service: f.s, role: "also", score: f.score });
+  }
 
   // 3枠目（専門特化の職種・製造では出さない）
   //  - 情報収集の段階／自分に合う仕事探し → 「まず相談したい方」枠

@@ -597,10 +597,12 @@
       "fit": {
         "bizsales": 60,
         "office": 40,
-        "eng": 40,
+        "eng": 100,
         "gen": 40,
         "it_sr": 40,
-        "const": 100
+        "const": 100,
+        "logi": 125,
+        "mfg": 125
       },
       "pri": {
         "up": 35,
@@ -609,9 +611,23 @@
       "confidence": "verified",
       "enabled": true,
       "requireExempt": [
-        "const"
+        "const",
+        "logi",
+        "mfg",
+        "eng"
       ],
-      "url": "https://r.8to.jp/LnvEkVeE4PEG"
+      "url": "https://r.8to.jp/LnvEkVeE4PEG",
+      "priByKey": {
+        "logi": {
+          "haken": -60
+        },
+        "mfg": {
+          "haken": -60
+        },
+        "eng": {
+          "haken": -60
+        }
+      }
     },
     {
       "id": "samurai",
@@ -1059,7 +1075,11 @@
       ],
       "fit": {
         "any": 55,
-        "retail": 70
+        "retail": 70,
+        "logi": 130,
+        "mfg": 130,
+        "eng": 100,
+        "const": 75
       },
       "exclude": [
         "nurse",
@@ -1070,9 +1090,7 @@
         "dis",
         "it_jr",
         "it_sr",
-        "it_free",
-        "mfg",
-        "logi"
+        "it_free"
       ],
       "pri": {
         "new": 25,
@@ -1080,7 +1098,21 @@
       },
       "confidence": "verified",
       "enabled": true,
-      "url": "https://r.8to.jp/TUphx86ZgKz6"
+      "url": "https://r.8to.jp/TUphx86ZgKz6",
+      "priByKey": {
+        "logi": {
+          "haken": -60
+        },
+        "mfg": {
+          "haken": -60
+        },
+        "eng": {
+          "haken": -60
+        },
+        "const": {
+          "haken": -60
+        }
+      }
     },
     {
       "id": "nekonote",
