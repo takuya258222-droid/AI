@@ -5,9 +5,11 @@ import { decide } from "./matcher.mjs";
 import { questionMessage, nextQuestion, resultMessages, salaryAskMessage, salaryResultMessage } from "./diagnosis.mjs";
 import {
   welcomeMessages, campaignMessage, stepsMessage, receiptMessages, taikenMessage, knowledgeMessage, faqMenuMessage, faqAnswerMessage,
-  aboutMessage, policyMessage, privacyMessage, contactMessage, homeMessage, fallbackMessages,
+  aboutMessage, policyMessage, privacyMessage, homeMessage, fallbackMessages,
 } from "./messages.mjs";
 import { recordDiagnosis, stopFollowup } from "./followup.mjs";
+import { netAskMessage, netResultMessage, prepSheetMessage, planAskMessage, planResultMessage, shareMessage, consultMessage } from "./tools.mjs";
+import { recordEntry, adminCommand } from "./lottery.mjs";
 import { bump, report } from "./stats.mjs";
 
 const text = (t) => ({ type: "text", text: t });
@@ -15,6 +17,11 @@ const norm = (s) => s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
 
 /** キーワード → 動作。上から順に判定する */
 const KEYWORDS = [
+  [/手取り|月収|手取/, "net"],
+  [/管理人|直接相談|個別相談|チャット相談/, "contact"],
+  [/スケジュール|いつまで|逆算/, "plan"],
+  [/面談準備|準備シート|面接/, "prep"],
+  [/シェア|紹介する|友だちに|友達に|教える/, "share"],
   [/年収/, "sal"],
   [/キャンペーン|paypay|ぺいぺい|ペイペイ|抽選|プレゼント/, "camp"],
   [/スクショ|スクリーンショット|登録|応募/, "steps"],
@@ -58,7 +65,11 @@ function route(action, arg, ctx) {
     case "about": return { messages: [aboutMessage(base)] };
     case "policy": return { messages: [policyMessage(base)] };
     case "privacy": return { messages: [privacyMessage(base)] };
-    case "contact": return { messages: [contactMessage()] };
+    case "contact": return { messages: [consultMessage(base)] };
+    case "net": return { messages: [a.i ? netResultMessage(a.i, base) : netAskMessage(base)] };
+    case "plan": return { messages: [a.t ? planResultMessage(a.t) : planAskMessage()] };
+    case "prep": return { messages: [prepSheetMessage(base)] };
+    case "share": return { messages: [shareMessage()] };
     case "home": return { messages: [homeMessage(base)] };
     default: return { messages: fallbackMessages(base) };
   }
@@ -74,6 +85,20 @@ async function safeReply(ctx, replyToken, messages) {
       try { await ctx.client.reply(replyToken, [text("申し訳ありません、表示に失敗しました。もう一度お試しください。")]); } catch { /* 無視 */ }
     }
   }
+}
+
+/** 自由入力のメッセージ（相談）が届いたことを運営者に通知（同じ人からは6時間に1回まで） */
+async function notifyAdmin(ctx, userId, raw) {
+  const { env, client, store } = ctx;
+  if (!env.ADMIN_USER_ID || userId === env.ADMIN_USER_ID) return;
+  try {
+    if (store) {
+      const k = `n:${userId}`;
+      if (await store.get(k)) return;
+      await store.put(k, { t: 1 }, 6 * 3600);
+    }
+    await client.push(env.ADMIN_USER_ID, [text(`💬 新しいメッセージが届きました。\n「${raw.slice(0, 60)}」\nトークをご確認ください。`)]);
+  } catch { /* 通知は任意 */ }
 }
 
 export async function handleEvent(event, ctx) {
@@ -104,6 +129,7 @@ export async function handleEvent(event, ctx) {
       const m = event.message;
       if (m.type === "image") {
         await bump(store, "shot", now);
+        await recordEntry(store, userId, now);
         await stopFollowup(store, userId); // 応募済みの方へのフォローは停止
         if (env.ADMIN_USER_ID) {
           try { await client.push(env.ADMIN_USER_ID, [text("📥 キャンペーンのスクショが届きました。トークをご確認ください。")]); } catch { /* 通知は任意 */ }
@@ -117,12 +143,19 @@ export async function handleEvent(event, ctx) {
       if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID && /^(統計|stats)$/.test(t)) {
         return safeReply(ctx, event.replyToken, [text(await report(store, 7, now))]);
       }
+      if (env.ADMIN_USER_ID && userId === env.ADMIN_USER_ID) {
+        const out = await adminCommand(t, { store, client, now });
+        if (out) return safeReply(ctx, event.replyToken, [text(out)]);
+      }
       if (t === norm(brand.followup.stopKeyword)) {
         await stopFollowup(store, userId);
         return safeReply(ctx, event.replyToken, [text("フォローのメッセージの配信を停止し、保存していた情報を削除しました。\nまた診断したくなったら、いつでもメニューからどうぞ。")]);
       }
       const hit = KEYWORDS.find(([re]) => re.test(t));
-      if (!hit) return safeReply(ctx, event.replyToken, fallbackMessages(ctx.base));
+      if (!hit) {
+        await notifyAdmin(ctx, userId, raw);
+        return safeReply(ctx, event.replyToken, fallbackMessages(ctx.base));
+      }
       const r = route(hit[1], "", ctx);
       if (r.evt) await bump(store, r.evt, now);
       return safeReply(ctx, event.replyToken, r.messages);

@@ -27,27 +27,18 @@ async function api(method, p, body, { host = "https://api.line.me", raw, type } 
 const W = 2500, H = 1686, TAB_H = 150, ROW_H = 768;
 const colX = [0, 833, 1667], colW = [833, 834, 833];
 const pb = (data, displayText) => ({ type: "postback", data, displayText });
-const tabs = (active) => [
-  { bounds: { x: 0, y: 0, width: 1250, height: TAB_H }, action: { type: "richmenuswitch", richMenuAliasId: "nagi-main", data: "tab=main" } },
-  { bounds: { x: 1250, y: 0, width: 1250, height: TAB_H }, action: { type: "richmenuswitch", richMenuAliasId: "nagi-info", data: "tab=info" } },
-];
+const tabW = [833, 834, 833], tabX = [0, 833, 1667];
+const ALIASES = ["nagi-main", "nagi-tools", "nagi-info"];
+const tabs = () => ALIASES.map((alias, i) => ({ bounds: { x: tabX[i], y: 0, width: tabW[i], height: TAB_H }, action: { type: "richmenuswitch", richMenuAliasId: alias, data: `tab=${alias.slice(5)}` } }));
 const cells = (actions) => actions.map((a, i) => ({ bounds: { x: colX[i % 3], y: TAB_H + Math.floor(i / 3) * ROW_H, width: colW[i % 3], height: ROW_H }, action: a }));
 
 const MENUS = [
-  {
-    id: "main", alias: "nagi-main", image: "assets/richmenu-main.jpg", name: "nagi-main 診断・応募",
-    areas: [
-      ...tabs("main"),
-      ...cells([pb("st", "30秒転職診断"), pb("sal", "年収診断"), pb("camp", "抽選キャンペーン"), pb("steps", "登録・応募の流れ"), pb("know", "転職ノウハウ"), pb("faq", "よくある質問")]),
-    ],
-  },
-  {
-    id: "info", alias: "nagi-info", image: "assets/richmenu-info.jpg", name: "nagi-info 体験記・安心",
-    areas: [
-      ...tabs("info"),
-      ...cells([pb("taiken", "転職体験記"), pb("policy", "ご紹介の考え方"), pb("about", "運営者について"), pb("contact", "お問い合わせ"), pb("privacy", "プライバシー・広告表記"), pb("st", "30秒診断をスタート")]),
-    ],
-  },
+  { id: "main", alias: "nagi-main", image: "assets/richmenu-main.jpg", name: "nagi-main 診断・応募",
+    areas: [...tabs(), ...cells([pb("st", "30秒転職診断"), pb("sal", "年収診断"), pb("camp", "抽選キャンペーン"), pb("steps", "登録・応募の流れ"), pb("know", "転職ノウハウ"), pb("faq", "よくある質問")])] },
+  { id: "tools", alias: "nagi-tools", image: "assets/richmenu-tools.jpg", name: "nagi-tools 便利ツール",
+    areas: [...tabs(), ...cells([pb("net", "手取り・月収の目安"), pb("prep", "面談準備シート"), pb("plan", "転職スケジュール"), pb("share", "友だちにシェア"), pb("know", "転職ノウハウ"), pb("contact", "管理人に相談")])] },
+  { id: "info", alias: "nagi-info", image: "assets/richmenu-info.jpg", name: "nagi-info 体験記・安心",
+    areas: [...tabs(), ...cells([pb("taiken", "転職体験記"), pb("policy", "ご紹介の考え方"), pb("about", "運営者について"), pb("contact", "管理人に相談"), pb("privacy", "プライバシー・広告表記"), pb("st", "30秒診断をスタート")])] },
 ];
 const definition = (m) => ({ size: { width: W, height: H }, selected: true, name: m.name, chatBarText: "30秒診断はこちら", areas: m.areas });
 

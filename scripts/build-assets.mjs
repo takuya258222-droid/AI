@@ -99,6 +99,7 @@ const BANNERS = {
   taiken: { en: "Career Stories", title: "転職体験記", sub: "動機・選考・年収・後悔まで、実例で読む", icon: "book" },
   about: { en: "About", title: "運営者について", sub: "表も裏も知る立場から、違いを整理します", icon: "compass" },
   policy: { en: "Our Standards", title: "ご紹介の<br>考え方", sub: "選び方も、広告であることも、明確に", icon: "check" },
+  consult: { en: "Private Consult", title: "管理人に<br>直接相談", sub: "診断だけでは決めきれないことも", icon: "coaching" },
   faq: { en: "Q &amp; A", title: "よくある<br>ご質問", sub: "気になることを、まずここで解決", icon: "faq" },
   childcare: { en: "Childcare", title: "保育士のための<br>転職サポート", sub: "保育業界に特化した求人紹介", icon: "childcare" },
   care: { en: "Care Work", title: "介護職のための<br>転職サポート", sub: "無資格・未経験から常勤・単発まで", icon: "care" },
@@ -117,8 +118,9 @@ const BANNERS = {
 
 // ---- リッチメニュー（タブ付き2面：診断・応募 / 体験記・安心）----
 const RM_TABS = [
-  { id: "main", label: "診断・応募", en: "Diagnosis" },
-  { id: "info", label: "体験記・安心", en: "Stories & Trust" },
+  { id: "main", label: "診断・応募" },
+  { id: "tools", label: "便利ツール" },
+  { id: "info", label: "体験記・安心" },
 ];
 const RM_CELLS = {
   main: [
@@ -129,11 +131,19 @@ const RM_CELLS = {
     { n: "05", jp: "転職ノウハウ", en: "Career Knowledge", icon: "book" },
     { n: "06", jp: "よくある質問", en: "Q &amp; A", icon: "faq" },
   ],
+  tools: [
+    { n: "01", jp: "手取り・月収の目安", en: "Take-home Calculator", icon: "bars", primary: true },
+    { n: "02", jp: "面談準備シート", en: "Interview Prep", icon: "check" },
+    { n: "03", jp: "転職スケジュール", en: "Schedule Planner", icon: "dispatch" },
+    { n: "04", jp: "友だちにシェア", en: "Share", icon: "matching" },
+    { n: "05", jp: "転職ノウハウ", en: "Career Knowledge", icon: "book" },
+    { n: "06", jp: "管理人に相談", en: "Private Consult", icon: "coaching" },
+  ],
   info: [
     { n: "01", jp: "転職体験記", en: "Career Stories", icon: "book", primary: true },
     { n: "02", jp: "ご紹介の考え方", en: "Our Standards", icon: "check" },
     { n: "03", jp: "運営者について", en: "About", icon: "compass" },
-    { n: "04", jp: "お問い合わせ", en: "Contact", icon: "coaching" },
+    { n: "04", jp: "管理人に相談", en: "Private Consult", icon: "coaching" },
     { n: "05", jp: "プライバシー・広告", en: "Privacy &amp; Disclosure", icon: "support" },
     { n: "06", jp: "30秒診断へ", en: "Start Diagnosis", icon: "matching" },
   ],
@@ -148,6 +158,7 @@ function richMenu(active) {
   .tab{flex:1;display:flex;align-items:center;justify-content:center;gap:26px;color:#C9A567;border-right:2px solid rgba(201,165,103,.42)}
   .tab:last-child{border-right:none}
   .tab .tj{font:700 58px 'Noto Serif JP',serif;letter-spacing:3px}
+  .tab .te{display:none}
   .tab .te{font:600 32px 'Cormorant Garamond',serif;letter-spacing:6px;text-transform:uppercase;opacity:.85}
   .tab.on{background:linear-gradient(135deg,#F3E2BC 0%,#D4AE6C 60%,#BF9752 100%);color:#0A1729}
   .tab.on .te{opacity:.8}
@@ -157,7 +168,7 @@ function richMenu(active) {
   .cell .no{position:absolute;top:44px;left:66px;font:600 44px 'Cormorant Garamond',serif;letter-spacing:6px;color:#C9A567}
   .cell svg{width:210px;height:210px;color:#E8D0A0;margin-bottom:38px;stroke-width:3;filter:drop-shadow(0 0 22px rgba(201,165,103,.25))}
   .cell .jp{font:700 88px 'Noto Serif JP',serif;letter-spacing:2px;white-space:nowrap}
-  .cell .jp.long{font-size:72px;letter-spacing:0}
+  .cell .jp.long{font-size:68px;letter-spacing:0}
   .cell .en{font-family:'Cormorant Garamond',serif;font-weight:600;color:#C9A567;text-transform:uppercase;font-size:36px;margin-top:20px;letter-spacing:7px;white-space:nowrap}
   .cell.primary{background:linear-gradient(135deg,#F3E2BC 0%,#D4AE6C 55%,#BF9752 100%);color:#0A1729}
   .cell.primary .no{color:#0A1729}
@@ -165,9 +176,9 @@ function richMenu(active) {
   .cell.primary .en{color:#3A2E14}
   .cell .badge{position:absolute;top:44px;right:60px;padding:8px 26px;border:2px solid #0A1729;border-radius:40px;font:700 30px 'Cormorant Garamond',serif;letter-spacing:6px;color:#0A1729}
   `;
-  const tabs = RM_TABS.map((tb) => `<div class="tab${tb.id === active ? " on" : ""}"><span class="tj">${tb.label}</span><span class="te">${tb.en}</span></div>`).join("");
+  const tabs = RM_TABS.map((tb) => `<div class="tab${tb.id === active ? " on" : ""}"><span class="tj">${tb.label}</span></div>`).join("");
   return wrap(css, `<div class="rm"><div class="tabs">${tabs}</div><div class="grid">${cells
-    .map((c) => `<div class="cell${c.primary ? " primary" : ""}"><div class="no">${c.n}</div>${c.primary ? '<div class="badge">START</div>' : ""}${ICONS[c.icon]}<div class="jp${c.jp.length > 7 ? " long" : ""}">${c.jp}</div><div class="en">${c.en}</div></div>`)
+    .map((c) => `<div class="cell${c.primary ? " primary" : ""}"><div class="no">${c.n}</div>${c.primary ? '<div class="badge">START</div>' : ""}${ICONS[c.icon]}<div class="jp${c.jp.length > 6 ? " long" : ""}">${c.jp}</div><div class="en">${c.en}</div></div>`)
     .join("")}</div></div>`);
 }
 
@@ -199,8 +210,9 @@ async function render(html, w, h, file, opts = {}) {
 for (const [id, b] of Object.entries(BANNERS)) await render(banner(b), 1200, 540, path.join(OUT, `${id}.jpg`));
 await render(stepsBanner(), 1200, 540, path.join(OUT, "steps.jpg"));
 await render(richMenu("main"), 2500, 1686, path.join(ASSETS, "richmenu-main.jpg"), { quality: 88 });
+await render(richMenu("tools"), 2500, 1686, path.join(ASSETS, "richmenu-tools.jpg"), { quality: 88 });
 await render(richMenu("info"), 2500, 1686, path.join(ASSETS, "richmenu-info.jpg"), { quality: 88 });
 await render(avatar(), 640, 640, path.join(ASSETS, "avatar.png"));
 await browser.close();
 
-for (const f of ["richmenu-main.jpg", "richmenu-info.jpg"]) if (fs.statSync(path.join(ASSETS, f)).size > 1024 * 1024) { console.error(f + " が1MBを超えています"); process.exit(1); }
+for (const f of ["richmenu-main.jpg", "richmenu-tools.jpg", "richmenu-info.jpg"]) if (fs.statSync(path.join(ASSETS, f)).size > 1024 * 1024) { console.error(f + " が1MBを超えています"); process.exit(1); }

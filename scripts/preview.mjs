@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { questionMessage, resultMessages, salaryResultMessage } from "../src/core/diagnosis.mjs";
 import * as M from "../src/core/messages.mjs";
+import * as T from "../src/core/tools.mjs";
 import { followupMessage } from "../src/core/followup.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -98,6 +99,7 @@ const jobs = {
   faq: [M.faqMenuMessage(), M.faqAnswerMessage("free")],
   about_policy: [M.aboutMessage(BASE), M.policyMessage(BASE), M.privacyMessage(BASE)],
   knowledge: [M.knowledgeMessage(BASE)],
+  tools: [T.consultMessage(BASE), T.netResultMessage("i4", BASE), T.planResultMessage("m3"), T.prepSheetMessage(BASE)],
   followup: [followupMessage(0, "j:med"), followupMessage(1, "j:med")],
 };
 

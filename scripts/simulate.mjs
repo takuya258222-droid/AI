@@ -42,7 +42,7 @@ async function send(events, { badSig = false } = {}) {
 const userEvt = (o) => ({ timestamp: Date.now(), source: { type: "user", userId: "Uuser1" }, mode: "active", ...o });
 const postback = (data) => userEvt({ type: "postback", replyToken: "rt-" + Math.random(), postback: { data } });
 const textEvt = (t) => userEvt({ type: "message", replyToken: "rt-" + Math.random(), message: { type: "text", id: "1", text: t } });
-const imageEvt = () => userEvt({ type: "message", replyToken: "rt-" + Math.random(), message: { type: "image", id: "2", contentProvider: { type: "line" } } });
+const imageEvt = (uid = "Uuser1") => ({ ...userEvt({ type: "message", replyToken: "rt-" + Math.random(), message: { type: "image", id: "2", contentProvider: { type: "line" } } }), source: { type: "user", userId: uid } });
 
 // 返信メッセージ中の postback data を全部集める
 function postbacks(msgs) {
@@ -140,7 +140,7 @@ ok(r.pushes.length === 1 && r.pushes[0].body.to === ADMIN, "運営へ通知");
 ok(!store._dump().has("d:Uuser1"), "応募後はフォロー配信を停止");
 
 console.log("\n[8] キーワード自動応答");
-const kw = { 診断: "STEP 1", 求人: "30秒診断がいちばん", 転職: "30秒診断がいちばん", エージェント: "30秒診断がいちばん", キャンペーン: "PRESENT CAMPAIGN", PayPay: "PRESENT CAMPAIGN", ペイペイ: "PRESENT CAMPAIGN", 登録: "HOW TO ENTER", スクショ: "HOW TO ENTER", 問い合わせ: "CONTACT", 転職の相談: "30秒診断がいちばん", 年収: "SALARY", 体験記: "CAREER STORIES", ノウハウ: "転職を成功させる4つの基本", 運営者: "ABOUT", 選定基準: "OUR STANDARDS", プライバシー: "PRIVACY", よくある質問: "Q & A", メニュー: "何をお探しですか" };
+const kw = { 診断: "STEP 1", 求人: "30秒診断がいちばん", 転職: "30秒診断がいちばん", エージェント: "30秒診断がいちばん", キャンペーン: "PRESENT CAMPAIGN", PayPay: "PRESENT CAMPAIGN", ペイペイ: "PRESENT CAMPAIGN", 登録: "HOW TO ENTER", スクショ: "HOW TO ENTER", 問い合わせ: "PRIVATE CONSULT", 手取り: "TAKE-HOME", 管理人: "PRIVATE CONSULT", スケジュール: "SCHEDULE", 面談準備: "INTERVIEW PREP", シェア: "SHARE", 転職の相談: "30秒診断がいちばん", 年収: "SALARY", 体験記: "CAREER STORIES", ノウハウ: "転職を成功させる4つの基本", 運営者: "ABOUT", 選定基準: "OUR STANDARDS", プライバシー: "PRIVACY", よくある質問: "Q & A", メニュー: "何をお探しですか" };
 for (const [k, expect] of Object.entries(kw)) {
   r = await send([textEvt(k)]);
   ok(r.replies.length === 1 && JSON.stringify(r.replies[0].body.messages).includes(expect), `「${k}」→ ${expect}`);
@@ -148,7 +148,7 @@ for (const [k, expect] of Object.entries(kw)) {
 r = await send([textEvt("こんにちは、質問があります")]);
 ok(JSON.stringify(r.replies[0].body.messages).includes("質問") , "質問系の文はFAQへ");
 r = await send([textEvt("ありがとう")]);
-ok(JSON.stringify(r.replies[0].body.messages).includes("運営が確認"), "その他はフォールバック（運営確認の案内）");
+ok(JSON.stringify(r.replies[0].body.messages).includes("運営が内容を確認"), "その他はフォールバック（運営確認の案内）");
 r = await send([userEvt({ type: "message", replyToken: "s", message: { type: "sticker", id: "3", packageId: "1", stickerId: "1" } })]);
 ok(r.replies.length === 1, "スタンプにも応答");
 
@@ -203,6 +203,49 @@ r = await send([adminEvt]);
 ok(JSON.stringify(r.replies[0].body.messages).includes("診断完了率"), "運営者だけが「統計」を見られる");
 r = await send([textEvt("統計")]);
 ok(!JSON.stringify(r.replies[0].body.messages).includes("診断完了率"), "一般ユーザーには統計を見せない");
+
+console.log("\n[11b] 便利ツール・管理人に相談");
+r = await send([postback("net|i:i4")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("約320〜395万円"), "手取り目安（400〜500万円）");
+r = await send([postback("net")]);
+ok(postbacks(r.replies[0].body.messages).length === 5, "手取り：年収の選択肢5つ");
+r = await send([postback("plan|t:m3")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("今週"), "スケジュール逆算（3か月）");
+r = await send([postback("plan")]);
+ok(postbacks(r.replies[0].body.messages).length === 3, "スケジュール：希望時期3つ");
+r = await send([postback("prep")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("oaMessage"), "面談準備シートから相談メモを開ける");
+r = await send([postback("share")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("line.me/R/share"), "友だちにシェア（LINE共有画面）");
+r = await send([postback("contact")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("oaMessage/%40641thwzc"), "管理人に相談：入力済みのトークを開く");
+const asUser = (uid, tx) => ({ ...textEvt(tx), source: { type: "user", userId: uid } });
+r = await send([asUser("Uconsult", "ありがとうございます")]);
+ok(r.pushes.some((p) => p.body.to === ADMIN && JSON.stringify(p.body).includes("新しいメッセージ")), "自由入力は運営者に通知");
+r = await send([asUser("Uconsult", "ありがとうございます")]);
+ok(r.pushes.length === 0, "同じ人からの連続通知は抑制（6時間に1回）");
+
+console.log("\n[11c] 抽選ツール（運営者専用）");
+for (const u of ["U2", "U3", "U4", "U5", "U5"]) await send([imageEvt(u)]);
+const adm = (t) => ({ ...textEvt(t), source: { type: "user", userId: ADMIN } });
+r = await send([adm("応募者数")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("今月") && JSON.stringify(r.replies[0].body.messages).includes("5名"), "応募者数：5名");
+r = await send([textEvt("抽選今月")]);
+ok(!JSON.stringify(r.replies[0].body.messages).includes("抽選結果"), "一般ユーザーは抽選を実行できない");
+r = await send([adm("抽選今月")]);
+const draw1 = JSON.stringify(r.replies[0].body.messages);
+ok(draw1.includes("抽選結果") && (draw1.match(/さん（応募/g) || []).length === 3, "運営者が抽選すると当選候補3名");
+r = await send([adm("抽選今月")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("抽選済み"), "二重抽選を防止");
+r = await send([adm("抽選今月再")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("抽選結果"), "「再」で引き直せる");
+r = await send([adm("当選連絡")]);
+const winnerPushes = r.pushes.filter((p) => p.body.to !== ADMIN);
+ok(winnerPushes.length === 3 && new Set(winnerPushes.map((p) => p.body.to)).size === 3 && JSON.stringify(winnerPushes[0].body).includes("ご当選"), "当選者3名に当選連絡");
+r = await send([adm("当選連絡")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("連絡済み"), "当選連絡の二重送信を防止");
+r = await send([adm("管理")]);
+ok(JSON.stringify(r.replies[0].body.messages).includes("運営者用コマンド"), "ヘルプ");
 
 console.log("\n[12] 異常系");
 env.LINE_API_BASE = `http://127.0.0.1:${PORT}`;

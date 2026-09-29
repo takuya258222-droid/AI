@@ -70,6 +70,17 @@ await check("home", [M.homeMessage(BASE)]);
 await check("fallback", M.fallbackMessages(BASE));
 await check("salary-ask", [salaryAskMessage(BASE)]);
 for (const i of INCOMES) await check(`salary:${i.v}`, [salaryResultMessage(i.v, BASE)]);
+import("../src/core/tools.mjs");
+{
+  const T = await import("../src/core/tools.mjs");
+  await check("net-ask", [T.netAskMessage(BASE)]);
+  for (const i of INCOMES) await check("net:" + i.v, [T.netResultMessage(i.v, BASE)]);
+  await check("prep", [T.prepSheetMessage(BASE)]);
+  await check("plan-ask", [T.planAskMessage()]);
+  for (const k of ["m3", "m6", "y1"]) await check("plan:" + k, [T.planResultMessage(k)]);
+  await check("share", [T.shareMessage()]);
+  await check("consult", [T.consultMessage(BASE)]);
+}
 await check("followup0", [followupMessage(0, "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3")]);
 await check("followup1", [followupMessage(1, "j:med,s:nurse,g:a30,i:i5,p:wl,t:m3")]);
 

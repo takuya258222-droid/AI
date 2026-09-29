@@ -213,7 +213,9 @@ function menuBubble() {
         spacer("sm"),
         ghost("転職体験記を読む", postback("転職体験記", "taiken", "転職体験記")),
         spacer("sm"),
-        ghost("選定基準・運営について", postback("選定基準", "policy", "ご紹介の考え方")),
+        ghost("管理人に直接相談", postback("管理人に相談", "contact", "管理人に相談")),
+        spacer("sm"),
+        ghost("友だちにも教える", postback("シェア", "share", "友だちにシェア")),
       ],
       { justifyContent: "center" }
     ),

@@ -23,7 +23,7 @@ export function welcomeMessages(base, name, { returning = false } = {}) {
   const who = name ? `${clip(name, 12)}さん、` : "";
   const hello = returning
     ? `${who}おかえりなさい。\nまたお会いできて嬉しいです。\n\n診断は何度でも、無料でやり直せます。`
-    : `${who}友だち追加ありがとうございます。\n運営のなぎです。\n\n「転職エージェントって、どこも同じでしょ？」\n実は、向き不向きがはっきり分かれます。合わないサービスに登録して時間を使うのは、もったいない。\n\nこのLINEは、あなたの職種・年代・年収帯に合うサービスだけを、選んだ理由つきで2社に絞ってお届けします。`;
+    : `${who}友だち追加ありがとうございます。\n運営のなぎです。\n元転職エージェントで、営業9年・支援成約800名・相談8,000名超。今は人材紹介会社の立ち上げ支援をしています。\n\n「転職エージェントって、どこも同じでしょ？」\n実は、向き不向きがはっきり分かれます。合わないサービスに登録して時間を使うのは、もったいない。\n\nこのLINEは、あなたの職種・年代・年収帯に合うサービスだけを、選んだ理由つきで2社に絞ってお届けします。`;
   const b = bubble({
     hero: heroImage(imgUrl(base, "welcome.jpg")),
     body: bodyBox([
@@ -265,7 +265,7 @@ export function aboutMessage(base) {
       eyebrow("ABOUT"),
       text(`運営：${brand.persona}`, { size: "xl", weight: "bold", color: C.navy, margin: "sm" }),
       text(brand.role, { size: "xs", color: C.muted, margin: "xs" }),
-      sep("lg"),
+      box("horizontal", brand.stats.map((s) => box("vertical", [text(s.value, { size: "lg", weight: "bold", color: C.navy, align: "center" }), text(s.label, { size: "xxs", color: C.muted, align: "center", margin: "xs" })], { flex: 1 })), { margin: "lg", backgroundColor: C.ivory, cornerRadius: "10px", paddingAll: "12px" }),
       text(brand.bio, { size: "sm", margin: "lg" }),
       text(`※${brand.bioSource}`, { size: "xxs", color: C.muted, margin: "sm" }),
       panel([text("noteでは、職種別の転職体験記を公開しています。", { size: "xs" })], { margin: "lg" }),
@@ -307,6 +307,8 @@ export function privacyMessage(base) {
       text("結果を表示するためにのみ使用します。", { size: "xs", margin: "xs" }),
       text("トークの内容・画像", { size: "xs", weight: "bold", color: C.goldDeep, margin: "md" }),
       text("お問い合わせ対応と、キャンペーンの確認・当選連絡のために運営が確認します。第三者へは提供しません（法令に基づく場合を除く）。", { size: "xs", margin: "xs" }),
+      text("キャンペーンの応募記録", { size: "xs", weight: "bold", color: C.goldDeep, margin: "md" }),
+      text("抽選と当選のご連絡のために、ユーザーID・応募月・応募回数を、最長150日間保存します。", { size: "xs", margin: "xs" }),
       text("フォローのメッセージ", { size: "xs", weight: "bold", color: C.goldDeep, margin: "md" }),
       text(`診断後に、お役立ち情報をお送りする場合があります。「${brand.followup.stopKeyword}」と送信すると停止し、保存した情報も削除します。`, { size: "xs", margin: "xs" }),
     ]),
@@ -345,7 +347,9 @@ export function homeMessage(base) {
       spacer("sm"),
       ghost("転職体験記", postback("転職体験記", "taiken", "転職体験記")),
       spacer("sm"),
-      ghost("よくある質問", postback("よくある質問", "faq", "よくある質問")),
+      ghost("手取り・月収の目安", postback("手取り", "net", "手取り・月収の目安")),
+      spacer("sm"),
+      ghost("管理人に直接相談", postback("管理人に相談", "contact", "管理人に相談")),
     ]),
   });
   return flexMessage("メニュー", b);
@@ -355,13 +359,14 @@ export function fallbackMessages(base) {
   return [
     {
       type: "text",
-      text: "メッセージありがとうございます。\n下のメニュー、または次のボタンからお選びください。\n\nお問い合わせの場合は、このままご記入ください。運営が確認して、順次ご返信します。",
+      text: "メッセージを受け取りました。運営が内容を確認して、順次ご返信します。\n\n診断やメニューは、下のボタンからも使えます。",
       quickReply: {
         items: [
           ["30秒転職診断", "st", "30秒転職診断"],
           ["年収診断", "sal", "年収診断"],
           ["キャンペーン", "camp", "キャンペーン詳細"],
           ["転職体験記", "taiken", "転職体験記"],
+          ["管理人に相談", "contact", "管理人に相談"],
           ["よくある質問", "faq", "よくある質問"],
         ].map(([label, data, dt]) => ({ type: "action", action: postback(label, data, dt) })),
       },
