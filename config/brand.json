@@ -15,7 +15,7 @@
     "note": "サービスの登録・面談に関するご質問は、各サービスの窓口へお問い合わせください。"
   },
   "disclosure": "当アカウントは、ご紹介するサービスの紹介リンク経由の登録・利用に応じて、各社から報酬を受け取る場合があります（広告・PR）。",
-  "legalPath": "/legal.html",
+  "legalPath": "/legal",
   "followup": {
     "retentionDays": 30,
     "stopKeyword": "配信停止"

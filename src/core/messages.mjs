@@ -10,23 +10,25 @@ const START = () => postback("30秒診断をスタート", "st", "30秒診断を
 const PR_LINE = () => text("PR｜紹介リンク経由の登録で、当アカウントが各社から報酬を受け取る場合があります", { size: "xxs", color: C.muted, align: "center", margin: "sm" });
 
 // ------------------------------------------------------------------ あいさつ
-export function welcomeMessages(base, name) {
+export function welcomeMessages(base, name, { returning = false } = {}) {
   const who = name ? `${clip(name, 12)}さん、` : "";
+  const hello = returning
+    ? `${who}おかえりなさい。\nまたお会いできて嬉しいです。\n\n診断は何度でも、無料でやり直せます。`
+    : `${who}友だち追加ありがとうございます。\n運営のなぎです。\n\n転職サービスは数が多く、どこも同じに見えて選びにくいですよね。\nこのLINEでは、あなたの職種・年代・年収帯に合うサービスだけを、理由つきでご案内します。`;
   const b = bubble({
     hero: heroImage(imgUrl(base, "welcome.jpg")),
     body: bodyBox([
-      text(`${who}友だち追加ありがとうございます。`, { size: "sm", color: C.muted }),
-      text("あなたに合う転職サービスを、30秒で。", { size: "lg", weight: "bold", color: C.navy, margin: "md" }),
+      text("自分に合うサービスが、\n30秒で分かります。", { size: "lg", weight: "bold", color: C.navy }),
       spacer("sm"),
-      checkRow("質問はすべてタップで回答（入力不要）"),
-      checkRow("職種・年代・年収帯から、厳選サービスをご案内"),
-      checkRow("診断は無料・登録不要"),
+      checkRow("質問はすべてタップ、入力は不要"),
+      checkRow("対象条件に合うサービスを、2社に厳選"),
+      checkRow("診断は無料・登録は任意"),
       sep("lg"),
       text(`運営：${brand.persona}｜${brand.bioShort}`, { size: "xxs", color: C.muted, margin: "md" }),
     ]),
     footer: footerBox([cta("👇 30秒診断をスタート", START()), PR_LINE()]),
   });
-  return [flexMessage("友だち追加ありがとうございます。30秒診断をスタートできます", b)];
+  return [{ type: "text", text: hello }, flexMessage("30秒診断をスタートできます", b)];
 }
 
 // ------------------------------------------------------------------ 登録→スクショ→抽選

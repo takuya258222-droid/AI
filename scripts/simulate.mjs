@@ -71,12 +71,16 @@ r = await handleRequest(new Request("https://x/health"), env, {});
 ok(r.status === 200, "/health は200");
 
 console.log("\n[2] 友だち追加 → あいさつ");
+let r2;
 r = await send([userEvt({ type: "follow", replyToken: "rtF" })]);
 ok(r.replies.length === 1, "あいさつを1回返信");
 ok(calls.some((c) => c.path.startsWith("/v2/bot/profile/")), "表示名を取得");
 const greet = JSON.stringify(r.replies[0].body.messages);
 ok(greet.includes("テスト太郎さん"), "名前入りのあいさつ");
 ok(greet.includes("30秒診断をスタート"), "診断開始ボタンがある");
+ok(r.replies[0].body.messages.length === 2 && r.replies[0].body.messages[0].type === "text", "1通目は運営からの短いあいさつ（テキスト）、2通目が診断カード");
+r2 = await send([userEvt({ type: "follow", replyToken: "rtG", follow: { isUnblocked: true } })]);
+ok(JSON.stringify(r2.replies[0].body.messages).includes("おかえりなさい"), "ブロック解除で戻った方には「おかえりなさい」");
 ok(r.replies[0].body.replyToken === "rtF" && r.replies[0].auth === "Bearer tok", "replyTokenとトークンが正しい");
 ok(sizeOk(r.replies[0].body.messages), "メッセージ数・サイズが上限内");
 

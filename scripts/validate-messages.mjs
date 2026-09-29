@@ -54,6 +54,7 @@ for (const a of samples) await check(`result:${encode(a)}`, resultMessages(a, BA
 // その他のパネル
 await check("welcome", M.welcomeMessages(BASE, "テスト太郎"));
 await check("welcome-noname", M.welcomeMessages(BASE));
+await check("welcome-returning", M.welcomeMessages(BASE, "テスト太郎", { returning: true }));
 await check("campaign", [M.campaignMessage(BASE)]);
 await check("steps", [M.stepsMessage(BASE)]);
 await check("receipt", M.receiptMessages(BASE));

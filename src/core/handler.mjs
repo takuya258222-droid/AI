@@ -85,7 +85,7 @@ export async function handleEvent(event, ctx) {
       let name;
       try { name = (await client.profile(userId)).displayName; } catch { /* 取得できなくてもOK */ }
       await bump(store, "follow", now);
-      return safeReply(ctx, event.replyToken, welcomeMessages(ctx.base, name));
+      return safeReply(ctx, event.replyToken, welcomeMessages(ctx.base, name, { returning: event.follow?.isUnblocked === true }));
     }
     case "unfollow":
       return stopFollowup(store, userId);

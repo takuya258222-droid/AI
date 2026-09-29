@@ -17,7 +17,8 @@ http
       // 静的ファイル
       if (req.method === "GET" && url.pathname !== "/health") {
         const rel = url.pathname === "/" ? "/index.html" : url.pathname;
-        const file = path.normalize(path.join(ROOT, rel));
+        let file = path.normalize(path.join(ROOT, rel));
+        if (!path.extname(file) && fs.existsSync(file + ".html")) file += ".html"; // /legal → legal.html
         if (file.startsWith(ROOT) && fs.existsSync(file) && fs.statSync(file).isFile()) {
           res.writeHead(200, { "content-type": MIME[path.extname(file)] || "application/octet-stream", "cache-control": "public, max-age=3600" });
           return fs.createReadStream(file).pipe(res);
