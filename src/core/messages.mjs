@@ -166,9 +166,10 @@ export function taikenMessage(base) {
       text(m.subtitle, { size: "xs", color: C.muted, margin: "xs" }),
       sep("lg"),
       text(m.description, { size: "sm", margin: "lg" }),
-      checkRow("職種別：看護・介護・医療・薬剤師など", { size: "xs" }),
+      checkRow("医療福祉：介護・看護・薬剤師・リハビリ", { size: "xs" }),
+      checkRow("M&A・コンサル・IT・SaaS・VC・PE・メーカー・工場・物流など", { size: "xs" }),
       checkRow("動機・選考・年収・後悔・その後まで", { size: "xs" }),
-      checkRow(`全${m.count}本（noteで公開中）`, { size: "xs" }),
+      checkRow("noteで毎日発信中", { size: "xs" }),
     ]),
     footer: footerBox([
       cta("マガジンをまとめて読む", uri("マガジンを読む", m.url)),
