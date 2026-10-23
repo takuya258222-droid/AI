@@ -277,6 +277,8 @@ body::before {
 
 .c-name { font-size: 15px; font-weight: 600; line-height: 1.3; min-width: 0 }
 .c-addr { font-size: 13px; color: var(--fg2); margin-bottom: 4px }
+.addr-link { color: var(--fg2); text-decoration: none; border-bottom: 1px dashed var(--fg3) }
+.addr-link:active { color: var(--accent) }
 .c-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--fg3) }
 
 .c-detail {
@@ -913,6 +915,8 @@ function render(){
   let infoText=filtered.length+'件';
   if(query)infoText+=' (「'+query+'」)';
   if(dateFrom||dateTo)infoText+=' ['+(dateFrom||'...')+'〜'+(dateTo||'...')+']';
+  if(activeShifts.size>0)infoText+=' ['+Array.from(activeShifts).join(',')+']';
+  if(activeFT.size>0)infoText+=' ['+Array.from(activeFT).join(',')+']';
   if(distMode&&distLabel){
     infoText+=' 📍'+distLabel+'から';
     if(!sortByDist)infoText+=' ('+(sortAsc?'古い順':'新しい順')+')';
@@ -956,7 +960,7 @@ function showMore(){
         (r.ft&&r.ft!=='その他'?'<span class="ft-badge">'+esc(r.ft)+'</span>':'')+
         '<div class="c-name">'+hl(r.n,terms)+distHtml+'</div>'+
       '</div>'+
-      '<div class="c-addr">'+hl(r.a,terms)+'</div>'+
+      '<div class="c-addr"><a href="https://www.google.com/maps/search/'+encodeURIComponent(r.a)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="addr-link">'+hl(r.a,terms)+'</a></div>'+
       '<div class="c-meta">'+meta+'</div>'+
       '<div class="c-detail">'+
         (r.o?'<div class="dl"><div class="dl-label">オーダー内容</div><div class="dl-val">'+hl(r.o,terms)+'</div></div>':'')+
@@ -983,7 +987,12 @@ function showMore(){
     list.appendChild(card);
   }
   shown=end;
-  document.getElementById('more').hidden=shown>=filtered.length;
+  const moreEl=document.getElementById('more');
+  moreEl.hidden=shown>=filtered.length;
+  if(!moreEl.hidden){
+    const remaining=filtered.length-shown;
+    moreEl.querySelector('button').textContent='もっと見る（残り'+remaining+'件）';
+  }
 }
 
 document.addEventListener('click',function(e){
