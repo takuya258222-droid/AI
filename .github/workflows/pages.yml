@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: ["claude/github-check-tezbwr"]
+    branches: ["claude/jolly-edison-bzgzfi"]
     paths: ["docs/**"]
   workflow_dispatch:
 
