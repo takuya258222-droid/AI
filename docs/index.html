@@ -432,6 +432,24 @@ body::before {
 .import-status { font-size: 13px; color: var(--fg2); margin-top: 14px; text-align: center; min-height: 20px }
 .import-status.error { color: #ef4444 }
 .import-status.success { color: #10b981 }
+.import-note { font-size: 12px; color: var(--fg3); margin-top: 12px; line-height: 1.7; background: var(--bg); border-radius: 10px; padding: 10px 14px; text-align: left }
+.import-note b { color: var(--fg2); font-weight: 600 }
+.import-result { margin-top: 14px; text-align: left }
+.import-result-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; margin-bottom: 6px; font-size: 13px; background: var(--bg) }
+.import-result-row .region-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px; flex-shrink: 0 }
+.import-result-row .region-badge.kansai { background: #dbeafe; color: #1e40af }
+.import-result-row .region-badge.kanto { background: #fce7f3; color: #9d174d }
+@media(prefers-color-scheme:dark){
+  .import-result-row .region-badge.kansai { background: #1e3a5f; color: #93c5fd }
+  .import-result-row .region-badge.kanto { background: #4a1942; color: #f9a8d4 }
+}
+.import-result-row .count { font-weight: 700; color: var(--fg) }
+.import-result-row .detail { color: var(--fg3); font-size: 11px }
+.import-result-excluded { text-align: center; font-size: 11px; color: var(--fg3); margin-top: 2px }
+.import-supplement { margin-top: 10px; font-size: 11px; color: var(--fg3); line-height: 1.7; background: var(--bg); border-radius: 10px; padding: 10px 14px }
+.import-supplement .label { color: var(--accent); font-weight: 600; font-size: 12px; margin-bottom: 4px }
+.import-supplement .item { display: flex; gap: 4px; align-items: baseline }
+.import-supplement .check { color: #10b981 }
 .import-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end }
 .import-actions button {
   padding: 10px 22px; border-radius: 10px; border: none;
@@ -650,6 +668,13 @@ mark { background: var(--accent-light); color: var(--accent); border-radius: 2px
   <div class="import-box">
     <div class="import-title">CSV案件取り込み</div>
     <div class="import-sub">バックオーダーCSVをドラッグ＆ドロップ、または選択してください（複数可）</div>
+    <div class="import-note">
+      <b>⚠ 入れ方の注意</b><br>
+      ・nemesysからエクスポートした<b>バックオーダーCSV</b>のみ対応<br>
+      ・「施設」「職種」「シフト」「備考」列が含まれていること<br>
+      ・関西5府県・関東5都県を自動判定して仕分けします<br>
+      ・同じ施設の案件は自動で統合（最新日付を優先）
+    </div>
     <div class="drop-zone" id="dropZone">
       <div class="drop-icon">&#x1F4C4;</div>
       <div class="drop-text">ここにCSVをドロップ</div>
@@ -658,6 +683,7 @@ mark { background: var(--accent-light); color: var(--accent); border-radius: 2px
     <input type="file" id="csvFileInput" accept=".csv" multiple hidden>
     <div class="import-progress" id="importProgress"><div class="import-progress-bar" id="importProgressBar"></div></div>
     <div class="import-status" id="importStatus"></div>
+    <div id="importResultArea"></div>
     <div class="import-actions">
       <button class="import-close" id="importClose" type="button">閉じる</button>
       <button class="import-apply" id="importApply" type="button">取り込む</button>
@@ -1584,12 +1610,19 @@ function parseCSVRows(text){
 let pendingImport=null;
 function parseCSVText(text){
   const allRows=parseCSVRows(text);
-  if(allRows.length<2)return {entries:[],kansai:0,kanto:0,other:0};
+  if(allRows.length<2)return {entries:[],kansai:0,kanto:0,other:0,stats:{}};
   const hdr=allRows[0];
   const idx={};hdr.forEach((h,i)=>idx[h.replace(/^﻿/,'')]=i);
-  if(!('施設' in idx)){return {error:'施設列が見つかりません。バックオーダーCSVを選択してください。'};}
+  const missingCols=[];
+  if(!('施設' in idx))missingCols.push('施設');
+  if(missingCols.length){return {error:'「'+missingCols.join('」「')+'」列が見つかりません。\nnemesysバックオーダーCSVを選択してください。'};}
+  const warnCols=[];
+  if(!('職種' in idx))warnCols.push('職種');
+  if(!('シフト' in idx))warnCols.push('シフト');
+  if(!('備考' in idx))warnCols.push('備考');
   const entries=[];const seen=new Map();
   let kansai=0,kanto=0,other=0;
+  const stats={totalRows:allRows.length-1,withGeo:0,withPhone:0,withContact:0,withShift:0,merged:0,ftCounts:{},catCounts:{},warnCols};
   for(let li=1;li<allRows.length;li++){
     const row=allRows[li];
     if(row.length<hdr.length)continue;
@@ -1634,16 +1667,22 @@ function parseCSVText(text){
       if(dateStr>ex.d)ex.d=dateStr;
       for(const s of shifts){if(!ex.s.includes(s))ex.s.push(s);}
       ex.t=ex.s.join('・');
+      stats.merged++;
       continue;
     }
     const entry={n:name,a:fullAddr,p:pref,c:contact,d:dateStr,
       o:orderDetails?'(1) '+orderDetails:'',t:timeInfo,s:shifts,
       cat:catV,ft:ft,lat:lat,lon:lon,_region:region};
-    if(phone)entry.ph=fmtPhone(phone);
+    if(phone){entry.ph=fmtPhone(phone);stats.withPhone++;}
+    if(lat&&lon)stats.withGeo++;
+    if(contact)stats.withContact++;
+    if(shifts.length)stats.withShift++;
+    stats.ftCounts[ft]=(stats.ftCounts[ft]||0)+1;
+    if(catV)stats.catCounts[catV]=(stats.catCounts[catV]||0)+1;
     entries.push(entry);
     seen.set(dk,entry);
   }
-  return {entries,kansai,kanto,other};
+  return {entries,kansai,kanto,other,stats};
 }
 
 const modal=document.getElementById('importModal');
@@ -1653,10 +1692,12 @@ const statusEl=document.getElementById('importStatus');
 const applyBtn=document.getElementById('importApply');
 const progressEl=document.getElementById('importProgress');
 const progressBar=document.getElementById('importProgressBar');
+const resultArea=document.getElementById('importResultArea');
 
 document.getElementById('importBtn').addEventListener('click',()=>{
   modal.classList.remove('hidden');
   statusEl.textContent='';statusEl.className='import-status';
+  resultArea.innerHTML='';
   applyBtn.classList.remove('show');
   progressEl.classList.remove('show');
   pendingImport=null;
@@ -1677,9 +1718,11 @@ async function handleFiles(files){
   const csvFiles=[...files].filter(f=>f.name.endsWith('.csv'));
   if(!csvFiles.length){statusEl.textContent='CSVファイルを選択してください';statusEl.className='import-status error';return;}
   statusEl.textContent='読み込み中...';statusEl.className='import-status';
+  resultArea.innerHTML='';
   progressEl.classList.add('show');progressBar.style.width='0%';
   applyBtn.classList.remove('show');
-  let allEntries=[];let totalK=0,totalKa=0,totalOther=0;
+  let allEntries=[];let totalK=0,totalKa=0,totalOther=0,totalMerged=0;
+  let aggStats={withGeo:0,withPhone:0,withContact:0,withShift:0,ftCounts:{},catCounts:{},warnCols:[]};
   const globalSeen=new Map();
   for(let fi=0;fi<csvFiles.length;fi++){
     progressBar.style.width=((fi/csvFiles.length)*80)+'%';
@@ -1701,16 +1744,47 @@ async function handleFiles(files){
       }
     }
     totalKa+=res.kansai;totalK+=res.kanto;totalOther+=res.other;
+    if(res.stats){
+      totalMerged+=res.stats.merged||0;
+      aggStats.withGeo+=res.stats.withGeo||0;
+      aggStats.withPhone+=res.stats.withPhone||0;
+      aggStats.withContact+=res.stats.withContact||0;
+      aggStats.withShift+=res.stats.withShift||0;
+      for(const[k,v]of Object.entries(res.stats.ftCounts||{}))aggStats.ftCounts[k]=(aggStats.ftCounts[k]||0)+v;
+      for(const[k,v]of Object.entries(res.stats.catCounts||{}))aggStats.catCounts[k]=(aggStats.catCounts[k]||0)+v;
+      if(res.stats.warnCols&&res.stats.warnCols.length)aggStats.warnCols=res.stats.warnCols;
+    }
   }
   progressBar.style.width='100%';
   const kansaiE=allEntries.filter(e=>e._region==='kansai');
   const kantoE=allEntries.filter(e=>e._region==='kanto');
   pendingImport={kansai:kansaiE,kanto:kantoE};
-  const parts=[];
-  if(kansaiE.length)parts.push('関西 '+kansaiE.length+'件');
-  if(kantoE.length)parts.push('関東 '+kantoE.length+'件');
-  statusEl.textContent=csvFiles.length+'ファイル → '+parts.join('・')+' を検出'+(totalOther?' (対象外'+totalOther+'件除外)':'');
+  statusEl.textContent=csvFiles.length+'ファイル読み込み完了';
   statusEl.className='import-status success';
+  let html='<div class="import-result">';
+  if(kansaiE.length){
+    const topCats=Object.entries(aggStats.catCounts).filter(([k,v])=>kansaiE.some(e=>e.cat===k)).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k])=>k).join(' / ');
+    html+='<div class="import-result-row"><span class="region-badge kansai">関西</span><span class="count">'+kansaiE.length+'件</span><span class="detail">'+topCats+'</span></div>';
+  }
+  if(kantoE.length){
+    const topCats=Object.entries(aggStats.catCounts).filter(([k,v])=>kantoE.some(e=>e.cat===k)).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k])=>k).join(' / ');
+    html+='<div class="import-result-row"><span class="region-badge kanto">関東</span><span class="count">'+kantoE.length+'件</span><span class="detail">'+topCats+'</span></div>';
+  }
+  if(totalOther)html+='<div class="import-result-excluded">※ 対象外エリア '+totalOther+'件は除外</div>';
+  if(totalMerged)html+='<div class="import-result-excluded">※ 重複 '+totalMerged+'件を自動統合済み</div>';
+  html+='</div>';
+  const total=allEntries.length;
+  if(total){
+    html+='<div class="import-supplement"><div class="label">自動補完された情報</div>';
+    html+='<div class="item"><span class="check">✓</span> 施設種別: '+Object.entries(aggStats.ftCounts).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([k,v])=>k+'('+v+')').join(' ')+'</div>';
+    if(aggStats.withGeo)html+='<div class="item"><span class="check">✓</span> 位置情報(距離計算用): '+aggStats.withGeo+'/'+total+'件</div>';
+    if(aggStats.withPhone)html+='<div class="item"><span class="check">✓</span> 電話番号: '+aggStats.withPhone+'/'+total+'件</div>';
+    if(aggStats.withContact)html+='<div class="item"><span class="check">✓</span> 担当者名: '+aggStats.withContact+'/'+total+'件</div>';
+    if(aggStats.withShift)html+='<div class="item"><span class="check">✓</span> シフト区分: '+aggStats.withShift+'/'+total+'件</div>';
+    if(aggStats.warnCols.length)html+='<div class="item" style="color:#f59e0b">⚠ 「'+aggStats.warnCols.join('」「')+'」列なし — 一部情報が補完できません</div>';
+    html+='</div>';
+  }
+  resultArea.innerHTML=html;
   if(allEntries.length)applyBtn.classList.add('show');
 }
 
@@ -1746,8 +1820,9 @@ applyBtn.addEventListener('click',()=>{
   if(addedKt)parts.push('関東 +'+addedKt+'件');
   const updated=kansaiNew.length+kantoNew.length-addedKa-addedKt;
   if(updated>0)parts.push(updated+'件更新');
-  statusEl.textContent='取り込み完了: '+parts.join('・');
+  statusEl.textContent='✅ 取り込み完了: '+parts.join('・');
   statusEl.className='import-status success';
+  resultArea.innerHTML='';
   applyBtn.classList.remove('show');
   if(currentRegion==='kansai')D=D_KANSAI;else D=D_KANTO;
   document.getElementById('total').textContent=' '+D.length+'件';
