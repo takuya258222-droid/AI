@@ -397,15 +397,15 @@ body::before {
 
 .updated { font-size: 11px; color: var(--fg3); text-align: center; padding: 8px 0 4px }
 .import-row { display: none }
-.import-header-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 5px 12px; border-radius: 8px; border: 1.5px solid var(--accent);
-  background: transparent; color: var(--accent); font-size: 12px;
+.import-overlay-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 24px; border-radius: 12px; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--fg2); font-size: 14px;
   font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s;
-  vertical-align: middle; margin-left: 8px;
+  margin-top: 24px;
 }
-.import-header-btn:hover { background: var(--accent); color: #fff }
-.import-header-btn:active { transform: scale(0.97) }
+.import-overlay-btn:hover { border-color: var(--accent); color: var(--accent) }
+.import-overlay-btn:active { transform: scale(0.97) }
 .import-modal {
   position: fixed; inset: 0; z-index: 10000;
   background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
@@ -594,9 +594,10 @@ mark { background: var(--accent-light); color: var(--accent); border-radius: 2px
       <div class="region-count">4317件</div>
     </div>
   </div>
+  <button class="import-overlay-btn" id="importBtn2" type="button">&#x1F4C2; CSVから案件を取り込む</button>
 </div>
 <div class="header">
-  <h1>案件検索<span id="total"></span><span class="region-switch" id="regionSwitch"></span><button class="import-header-btn" id="importBtn2" type="button">&#x1F4C2; CSV取込</button></h1>
+  <h1>案件検索<span id="total"></span><span class="region-switch" id="regionSwitch"></span></h1>
   <div class="search-box">
     <input type="text" id="q" placeholder="施設名・住所・キーワードで検索" autocomplete="off">
     <button class="q-clear" id="qClear" type="button" hidden>&times;</button>
