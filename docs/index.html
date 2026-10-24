@@ -396,15 +396,16 @@ body::before {
 .empty-text { font-size: 15px; font-weight: 500 }
 
 .updated { font-size: 11px; color: var(--fg3); text-align: center; padding: 8px 0 4px }
-.import-row { text-align: center; padding: 0 0 16px }
-.import-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 18px; border-radius: 10px; border: 1.5px solid var(--accent);
-  background: var(--surface); color: var(--accent); font-size: 13px; font-weight: 600;
-  font-family: inherit; cursor: pointer; transition: all 0.2s;
+.import-row { display: none }
+.import-header-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px; border-radius: 8px; border: 1.5px solid var(--accent);
+  background: transparent; color: var(--accent); font-size: 12px;
+  font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s;
+  vertical-align: middle; margin-left: 8px;
 }
-.import-btn:hover { background: var(--accent); color: #fff }
-.import-btn:active { transform: scale(0.97) }
+.import-header-btn:hover { background: var(--accent); color: #fff }
+.import-header-btn:active { transform: scale(0.97) }
 .import-modal {
   position: fixed; inset: 0; z-index: 10000;
   background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
@@ -595,7 +596,7 @@ mark { background: var(--accent-light); color: var(--accent); border-radius: 2px
   </div>
 </div>
 <div class="header">
-  <h1>案件検索<span id="total"></span><span class="region-switch" id="regionSwitch"></span></h1>
+  <h1>案件検索<span id="total"></span><span class="region-switch" id="regionSwitch"></span><button class="import-header-btn" id="importBtn2" type="button">&#x1F4C2; CSV取込</button></h1>
   <div class="search-box">
     <input type="text" id="q" placeholder="施設名・住所・キーワードで検索" autocomplete="off">
     <button class="q-clear" id="qClear" type="button" hidden>&times;</button>
@@ -1694,14 +1695,16 @@ const progressEl=document.getElementById('importProgress');
 const progressBar=document.getElementById('importProgressBar');
 const resultArea=document.getElementById('importResultArea');
 
-document.getElementById('importBtn').addEventListener('click',()=>{
+function openImportModal(){
   modal.classList.remove('hidden');
   statusEl.textContent='';statusEl.className='import-status';
   resultArea.innerHTML='';
   applyBtn.classList.remove('show');
   progressEl.classList.remove('show');
   pendingImport=null;
-});
+}
+document.getElementById('importBtn').addEventListener('click',openImportModal);
+document.getElementById('importBtn2').addEventListener('click',openImportModal);
 document.getElementById('importClose').addEventListener('click',()=>{modal.classList.add('hidden');});
 modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.add('hidden');});
 
