@@ -7,7 +7,7 @@ import {entrySchema,record} from '../lib/model';
 test('DB: 保存・採番・二重送信・RLS・予約重複・通知claim',async()=>{const db=new PGlite({extensions:{btree_gist}});try{
 await db.exec('create role anon; create role authenticated; create role service_role bypassrls; create schema auth; create table auth.users(id uuid primary key,email text);');
 await db.exec(readFileSync(new URL('../supabase/schema.sql',import.meta.url),'utf8'));
-const data={full_name:'架空テスト',phone:'09000000000',age:'20代前半',job_type:'介護',qualifications:['無資格'],status_current:'離職中',recent_emp_type:'パート',total_exp:0,histories:[{facility:'その他',years:0}],earlier_facilities:[],work_hours:['日勤'],work_days:'週2-3日',call_date_1:'2099-01-01',call_time_1:'10:00〜12:00',join_date:'2099-01-02',early_join:'前倒し不可'};
+const data={full_name:'架空テスト',postal_code:'5500001',phone:'09000000000',age:'20代前半',job_type:'介護',qualifications:['無資格'],status_current:'離職中',recent_emp_type:'パート',total_exp:0,histories:[{facility:'その他',years:0}],earlier_facilities:[],work_hours:['日勤'],work_days:'週2-3日',call_date_1:'2099-01-01',call_time_1:'10:00',join_date:'2099-01-02',early_join:'前倒し不可'};
 const payload=record(entrySchema.parse({...data,request_id:crypto.randomUUID()}));
 const insert=async(p:unknown,key='rate-a')=>(await db.query<{id:string}>('select public.submit_entry($1::jsonb,$2) id',[JSON.stringify(p),key])).rows[0].id;
 const first=await insert(payload);assert.match(first,/^ENT-\d{14}$/);assert.equal(await insert(payload),first);
