@@ -1,0 +1,43 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {NextRequest} from 'next/server';
+import {notifyEntry,labels} from '../lib/notify';
+import {POST as book} from '../app/api/admin/book/route';
+import {PATCH,GET} from '../app/api/admin/entries/route';
+import {POST as shortLink} from '../app/api/admin/short-link/route';
+import {record,entrySchema} from '../lib/model';
+const entry={...record(entrySchema.parse({request_id:crypto.randomUUID(),full_name:'架空の通知確認用',phone:'09000000000',age:'50代',job_type:'介護',qualifications:['介護福祉士'],status_current:'在職中',recent_emp_type:'正社員',total_exp:30,histories:[{facility:'特養',years:2},{facility:'老健',years:1}],earlier_facilities:['有料(介護付)'],work_hours:['日勤'],work_days:'週5日',call_date_1:'2099-01-01',call_time_1:'10:00〜12:00',join_date:'2099-02-01',early_join:'前倒し相談可能'})),id:'ENT-20990101000000',created_at:'2099-01-01T00:00:00Z',updated_at:'2099-01-01T00:00:00Z',status:'未対応',internal_memo:'',notification_status:'pending'};
+const json=(value:unknown,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
+const request=(path:string,data?:unknown,authenticated=true)=>new NextRequest(`https://example.test${path}`,{method:data?'POST':'GET',headers:{...(authenticated?{Authorization:'Bearer test-token'}:{}),'Content-Type':'application/json'},...(data?{body:JSON.stringify(data)}:{})});
+function setup(){Object.assign(process.env,{NEXT_PUBLIC_SUPABASE_URL:'https://database.example.test',SUPABASE_SERVICE_ROLE_KEY:'mock-service-key',RESEND_API_KEY:'mock-mail-key',EMAIL_FROM:'Entry <entry@example.test>',NOTIFY_EMAIL:'t-sugimoto@kikari.co.jp',APP_URL:'https://entry.example.test',GOOGLE_CLIENT_ID:'mock-client',GOOGLE_CLIENT_SECRET:'mock-secret',GOOGLE_REFRESH_TOKEN:'mock-refresh',GOOGLE_CALENDAR_ID:'test-calendar'});}
+type State={mailFail?:boolean;claim?:boolean;busy?:boolean;calendarFail?:boolean;eventExists?:boolean;conflict?:boolean;notes?:unknown[];emailBodies?:Record<string,unknown>[];events?:Record<string,unknown>[];appointment?:Record<string,unknown>;savedPatch?:Record<string,unknown>;short?:string};
+function install(s:State){const original=globalThis.fetch;globalThis.fetch=async(input,init)=>{const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;const method=init?.method||'GET';let body:Record<string,unknown>={};if(typeof init?.body==='string'){try{body=JSON.parse(init.body);}catch{}}
+ if(url.includes('/auth/v1/user'))return json({id:'3884f950-cd88-4b8f-829f-87002c5ef91a',aud:'authenticated',role:'authenticated',email:'test@example.test'});
+ if(url.includes('/rest/v1/staff'))return json([{user_id:'3884f950-cd88-4b8f-829f-87002c5ef91a'}]);
+ if(url.includes('/rpc/claim_notification'))return json(s.claim!==false);
+ if(url.includes('/rest/v1/notifications')){(s.notes??=[]).push(body);return json(null);}
+ if(url.includes('/rest/v1/entries')){if(method==='PATCH'){s.savedPatch=body;return json(s.conflict?null:{...entry,...body});}return json(entry);}
+ if(url.includes('/rest/v1/short_links')){s.short=body.code as string;return json(null);}
+ if(url.includes('/rest/v1/appointments')){if(method==='POST'){if(s.appointment)return json({code:'23505',message:'duplicate'},409);s.appointment=body;return json(null);}if(method==='GET')return json(s.appointment?[s.appointment]:[]);if(method==='DELETE'){s.appointment=undefined;return json(null);}if(method==='PATCH'){s.appointment={...s.appointment,...body};return json(null);}}
+ if(url==='https://api.resend.com/emails'){(s.emailBodies??=[]).push(body);return s.mailFail?json({message:'provider unavailable'},503):json({id:'mock-mail-id'});}
+ if(url==='https://oauth2.googleapis.com/token')return json({access_token:'mock-access'});
+ if(url.endsWith('/freeBusy'))return json({calendars:{'test-calendar':{busy:s.busy?[{start:'2099-01-01T01:30:00Z',end:'2099-01-01T02:00:00Z'}]:[]}}});
+ if(url.includes('/events/'))return s.eventExists?json({htmlLink:'https://calendar.google.com/calendar/event?eid=mock',status:'confirmed'}):json({error:'not found'},404);
+ if(url.endsWith('/events')&&method==='POST'){(s.events??=[]).push(body);if(s.calendarFail)return json({error:'temporary'},503);s.eventExists=true;return json({htmlLink:'https://calendar.google.com/calendar/event?eid=mock'});}
+ throw new Error(`Unexpected mock request: ${method} ${url}`);
+ };return ()=>{globalThis.fetch=original;};}
+
+test('外部連携シミュレーション（実送信なし）',async t=>{setup();
+await t.test('通知成功：指定宛先・全項目・管理画面リンクを送信',async()=>{const s:State={},restore=install(s);try{await notifyEntry(entry.id);assert.deepEqual(s.emailBodies?.[0].to,['t-sugimoto@kikari.co.jp']);const text=s.emailBodies?.[0].text as string;for(const label of Object.values(labels))assert.ok(text.includes(label));assert.ok(text.includes('計27年'));assert.equal((s.notes?.[0] as {state:string}).state,'sent');}finally{restore();}});
+await t.test('通知失敗→再送成功：応募データを失わず状態更新',async()=>{const s:State={mailFail:true},restore=install(s);try{await notifyEntry(entry.id);assert.equal((s.notes?.[0] as {state:string}).state,'failed');s.mailFail=false;await notifyEntry(entry.id);assert.equal((s.notes?.[1] as {state:string}).state,'sent');assert.equal(s.emailBodies?.length,2);}finally{restore();}});
+await t.test('送信済み／別処理中なら重複メール送信しない',async()=>{const s:State={claim:false},restore=install(s);try{await notifyEntry(entry.id);assert.equal(s.emailBodies,undefined);}finally{restore();}});
+await t.test('空き枠：1時間でGoogleイベントを作成',async()=>{const s:State={},restore=install(s);try{const r=await book(request('/api/admin/book',{id:entry.id,start:'2099-01-01T10:00:00+09:00'}));assert.equal(r.status,200);const event=s.events?.[0] as {start:{dateTime:string};end:{dateTime:string};summary:string};assert.equal(Date.parse(event.end.dateTime)-Date.parse(event.start.dateTime),3600000);assert.equal(event.summary.includes(entry.full_name),false);assert.equal(s.appointment?.state,'confirmed');}finally{restore();}});
+await t.test('Google予定重複：409で登録せずDBの仮押さえ解除',async()=>{const s:State={busy:true},restore=install(s);try{const r=await book(request('/api/admin/book',{id:entry.id,start:'2099-01-01T10:00:00+09:00'}));assert.equal(r.status,409);assert.equal(s.events,undefined);assert.equal(s.appointment,undefined);}finally{restore();}});
+await t.test('Google書き込み失敗→同一枠再試行で確定',async()=>{const s:State={calendarFail:true},restore=install(s);try{let r=await book(request('/api/admin/book',{id:entry.id,start:'2099-01-01T10:00:00+09:00'}));assert.equal(r.status,502);assert.equal(s.appointment?.state,undefined);s.calendarFail=false;r=await book(request('/api/admin/book',{id:entry.id,start:'2099-01-01T10:00:00+09:00'}));assert.equal(r.status,200);assert.equal(s.appointment?.state,'confirmed');}finally{restore();}});
+await t.test('既存イベントの再確認：二重作成なしでDB整合を復旧',async()=>{const s:State={eventExists:true},restore=install(s);try{const r=await book(request('/api/admin/book',{id:entry.id,start:'2099-01-01T10:00:00+09:00'}));assert.equal(r.status,200);assert.equal(s.events,undefined);assert.equal(s.appointment?.state,'confirmed');}finally{restore();}});
+await t.test('希望帯をはみ出す1時間は400',async()=>{const s:State={},restore=install(s);try{const r=await book(request('/api/admin/book',{id:entry.id,start:'2099-01-01T11:30:00+09:00'}));assert.equal(r.status,400);assert.equal(s.events,undefined);}finally{restore();}});
+await t.test('対象外＋メモを一緒に保存',async()=>{const s:State={},restore=install(s);try{const r=await PATCH(request('/api/admin/entries',{id:entry.id,status:'対象外',internal_memo:'本人希望により対象外。記録は保持。',updated_at:entry.updated_at}));assert.equal(r.status,200);assert.equal(s.savedPatch?.status,'対象外');assert.equal(s.savedPatch?.internal_memo,'本人希望により対象外。記録は保持。');}finally{restore();}});
+await t.test('他担当者の更新と衝突すると409',async()=>{const s:State={conflict:true},restore=install(s);try{const r=await PATCH(request('/api/admin/entries',{id:entry.id,status:'対応済み',internal_memo:'更新',updated_at:entry.updated_at}));assert.equal(r.status,409);}finally{restore();}});
+await t.test('未認証は管理データを返さない',async()=>{const r=await GET(request('/api/admin/entries',undefined,false));assert.equal(r.status,401);});
+await t.test('短縮URLは8文字コードで個人情報を含まない',async()=>{const s:State={},restore=install(s);try{const r=await shortLink(request('/api/admin/short-link',{}));assert.equal(r.status,200);const body=await r.json();assert.match(body.url,/^https:\/\/entry.example.test\/s\/[A-Za-z0-9_-]{8}$/);assert.equal(body.url.includes(entry.phone),false);}finally{restore();}});
+});

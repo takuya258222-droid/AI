@@ -1,0 +1,6 @@
+import {NextRequest,NextResponse} from 'next/server';
+import {z} from 'zod';
+import {staff,body,failure,HttpError} from '@/lib/server';
+import {statuses} from '@/lib/model';
+export async function GET(req:NextRequest){try{const client=await staff(req);const offset=Math.max(0,Number(req.nextUrl.searchParams.get('offset')||0));if(!Number.isInteger(offset))throw new HttpError(400,'ページ指定が不正です');const {data,error}=await client.from('entries').select('*,appointments(*)').order('created_at',{ascending:false}).range(offset,offset+499);if(error)throw error;return NextResponse.json({entries:data});}catch(e){return failure(e);}}
+export async function PATCH(req:NextRequest){try{const client=await staff(req);const parsed=z.object({id:z.string().regex(/^ENT-\d{14}$/),status:z.enum(statuses),internal_memo:z.string().max(5000),updated_at:z.iso.datetime({offset:true})}).safeParse(await body(req));if(!parsed.success)throw new HttpError(400,'更新内容を確認してください');const {id,updated_at,...patch}=parsed.data;const {data,error}=await client.from('entries').update({...patch,updated_at:new Date().toISOString()}).eq('id',id).eq('updated_at',updated_at).select('*').maybeSingle();if(error)throw error;if(!data)throw new HttpError(409,'別の担当者が更新しました。再読込して内容をご確認ください');return NextResponse.json({entry:data});}catch(e){return failure(e);}}

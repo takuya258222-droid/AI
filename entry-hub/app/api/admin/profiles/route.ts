@@ -1,0 +1,6 @@
+import {NextRequest,NextResponse} from 'next/server';
+import {staff,body,failure,HttpError} from '@/lib/server';
+import {profileSchema} from '@/lib/sheet';
+async function context(req:NextRequest){const client=await staff(req);const {data}=await client.auth.getUser(req.headers.get('authorization')!.slice(7));return {client,userId:data.user!.id};}
+export async function GET(req:NextRequest){try{const {client,userId}=await context(req);const {data,error}=await client.from('author_profiles').select('*').order('name');if(error)throw error;return NextResponse.json({profiles:data,userId});}catch(e){return failure(e);}}
+export async function POST(req:NextRequest){try{const {client,userId}=await context(req);const parsed=profileSchema.safeParse(await body(req));if(!parsed.success)throw new HttpError(400,'会社名・担当者名・メールアドレスを確認してください');const {id,...profile}=parsed.data;const query=id?client.from('author_profiles').update({...profile,updated_at:new Date().toISOString()}).eq('id',id).eq('owner_id',userId):client.from('author_profiles').insert({...profile,owner_id:userId});const {data,error}=await query.select('*').maybeSingle();if(error)throw error;if(!data)throw new HttpError(403,'他の担当者のプロフィールは変更できません。自分のプロフィールとして新規登録してください');return NextResponse.json({profile:data});}catch(e){return failure(e);}}
