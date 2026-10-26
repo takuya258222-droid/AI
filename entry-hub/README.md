@@ -202,3 +202,16 @@ node --import tsx scripts/sample-pdf.ts
 - Google Calendar共有：https://developers.google.com/workspace/calendar/api/concepts/sharing
 - OAuth設定：https://developers.google.com/identity/protocols/oauth2/web-server
 - OAuthトークンの有効性：https://developers.google.com/identity/protocols/oauth2
+
+## Gmail通知（送信元ドメインのDNS設定ができない場合）
+
+`MAIL_PROVIDER=gmail`、`GMAIL_FROM=takuya258222@gmail.com` を設定すると、応募通知と管理画面のテスト通知を同じGmail API経由で送ります。通知先は `NOTIFY_EMAIL=t-sugimoto@kikari.co.jp`。求職者のGoogleログインは不要です。
+
+Google CloudでGmail APIとGoogle Calendar APIを有効化し、OAuthクライアントを作成します。送信専用の `https://www.googleapis.com/auth/gmail.send` と必要なカレンダー権限を本人が認可したrefresh tokenを、サーバー専用の `GOOGLE_REFRESH_TOKEN` に設定してください。送信用に別認可した場合は `GMAIL_REFRESH_TOKEN` に保存できます。`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` も必要です。秘密値はリポジトリやチャットに貼らないでください。Testing状態のOAuthアプリは通常7日でrefresh tokenが失効するため、本運用前に公開状態・適用されるGoogleの要件を確認してください。
+
+Gmail APIはResendのIdempotency-Keyと同じ保証を提供しません。DBの送信済み判定・排他処理は維持しますが、送信成功直後の通信断やDB更新失敗後の再送では重複通知が発生し得ます。自動再送と実受信を照合してください。
+
+2026-10-26: Gmail用追加2テスト・既存39テスト成功。外部通信はモック。Google Cloudの認証設定画面が操作環境でSite Unavailableのため、実送信・実到着の確認は未完了です。
+
+参考: https://developers.google.com/workspace/gmail/api/guides/sending
+参考: https://developers.google.com/identity/protocols/oauth2
