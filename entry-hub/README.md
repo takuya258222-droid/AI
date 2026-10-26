@@ -215,3 +215,15 @@ Gmail APIはResendのIdempotency-Keyと同じ保証を提供しません。DBの
 
 参考: https://developers.google.com/workspace/gmail/api/guides/sending
 参考: https://developers.google.com/identity/protocols/oauth2
+
+## 管理画面からGoogleに接続（手動トークンコピー不要）
+
+1. `supabase/migrations/20261026120523_google_oauth_connect.sql` を適用します。
+2. Renderに `GOOGLE_TOKEN_ENCRYPTION_KEY`（32バイト乱数のbase64）、同じOAuthクライアントの `GOOGLE_CLIENT_ID` と `GOOGLE_CLIENT_SECRET`、`GMAIL_FROM`、`APP_URL` を設定。`MAIL_PROVIDER=gmail`、`GOOGLE_CALENDAR_ID=primary` を設定します。既存のRefresh token設定は移行用に残せますが、接続後は暗号化DBの値が優先されます。
+3. Google Cloud > Google Auth Platform > Clients > 対象のWebクライアントの「承認済みのリダイレクトURI」に `https://kikari-entry-hub.onrender.com/api/admin/google/callback` を追加します（APP_URLと一致させる）。PlaygroundのURLと併存できます。
+4. `/admin` にログインし「Google連携・メール通知の設定」→「Googleと連携」。GMAIL_FROMのGoogleアカウントで許可します。戻ると自動保存されます。
+5. 「テストメールを送信」で実到着を確認し、空き日時に30分のテスト予定を登録します。接続保存だけでは実到着の確認にはなりません。
+
+個人の社内運用でも、Googleの公開ステータスがTestingの場合は通常7日でRefresh tokenが失効します。継続運用時にはGoogle側の公開設定と、使用用途に応じた検証要件を確認してください。認証失効時は管理画面から再接続できます。キーをチャット等に公開した場合はGoogle Cloudで安全にローテーションしてRenderも更新してください。
+
+安全設計：スタッフ認証が必要なPOSTで開始し、Origin検証、10分有効のランダムstate、Secure/HttpOnly/SameSite=Laxのホスト限定Cookie、DBで一度だけ消費するstate、PKCE S256、コールバック時のスタッフ権限再確認、確認済みGoogleメールアドレスと許可スコープの検証を使用。Refresh token・PKCE verifierはAES-256-GCMで暗号化し、DBテーブルはRLS有効・anon/authenticated権限なし・service_roleのみ。Google認証コード・トークンをUIやログへ返しません。暗号化キーを失うと再接続が必要です。状態エラーや接続キャンセルで既存の接続を上書きしません。

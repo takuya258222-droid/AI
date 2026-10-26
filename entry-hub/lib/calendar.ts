@@ -1,4 +1,5 @@
+import {googleAccessToken,googleConfigured} from './google-oauth';
 import {env,HttpError} from './server';
-export function calendarConfigured(){return Boolean(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET&&process.env.GOOGLE_REFRESH_TOKEN&&process.env.GOOGLE_CALENDAR_ID);}
-export async function calendarToken(){const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',body:new URLSearchParams({client_id:env('GOOGLE_CLIENT_ID'),client_secret:env('GOOGLE_CLIENT_SECRET'),refresh_token:env('GOOGLE_REFRESH_TOKEN'),grant_type:'refresh_token'}),signal:AbortSignal.timeout(10000)});if(!r.ok)throw new HttpError(502,'カレンダー認証を確認してください。応募情報は保存済みです');return (await r.json()).access_token as string;}
+export async function calendarConfigured(){return Boolean(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET&&process.env.GOOGLE_CALENDAR_ID&&await googleConfigured());}
+export const calendarToken=googleAccessToken;
 export async function calendarRequest(token:string,path:string,init:RequestInit={}){return fetch(`https://www.googleapis.com/calendar/v3/${path}`,{...init,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...init.headers},signal:AbortSignal.timeout(12000)});}
