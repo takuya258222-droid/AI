@@ -3,3 +3,10 @@ node_modules/
 .env*
 !.env.example
 *.tsbuildinfo
+
+.pdf-worker/
+
+output/
+supabase/.temp/
+
+assets/*.ttf
