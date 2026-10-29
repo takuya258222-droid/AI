@@ -1,0 +1,12 @@
+import {cp,mkdir,writeFile,symlink,rm} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+import {resolve} from 'node:path';
+const dir=resolve('.candidate-site');
+await rm(dir,{recursive:true,force:true});await mkdir(dir+'/app',{recursive:true});
+for(const file of ['page.tsx','layout.tsx','globals.css'])await cp('app/'+file,dir+'/app/'+file);
+await mkdir(dir+'/components');await cp('components/EntryForm.tsx',dir+'/components/EntryForm.tsx');
+await mkdir(dir+'/lib');for(const file of ['model.ts','options.ts'])await cp('lib/'+file,dir+'/lib/'+file);
+for(const file of ['tsconfig.json','postcss.config.mjs','package.json'])await cp(file,dir+'/'+file);
+await symlink(resolve('node_modules'),dir+'/node_modules','dir');
+await writeFile(dir+'/next.config.mjs',"export default {output:'export',images:{unoptimized:true}};");
+execFileSync(process.execPath,[resolve('node_modules/next/dist/bin/next'),'build','--webpack'],{cwd:dir,stdio:'inherit'});

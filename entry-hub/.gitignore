@@ -10,3 +10,5 @@ output/
 supabase/.temp/
 
 assets/*.ttf
+
+.candidate-site/
