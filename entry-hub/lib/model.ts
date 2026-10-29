@@ -1,18 +1,6 @@
 import { z } from 'zod';
-export const ages=['20代前半','20代後半','30代前半','30代後半','40代','50代','60代以上'] as const;
-export const statuses=['未対応','対応済み','対象外'] as const;
-export const qualifications={看護:['正看護師','准看護師','保健師','助産師','認定看護師'],介護:['介護福祉士','実務者研修','初任者研修','認知症介護基礎研修','ケアマネジャー','社会福祉士','無資格']};
-const additionalFacilities=['特別養護老人ホーム','グループホーム','介護付き有料老人ホーム','老人保健施設','サービス付き高齢者向け住宅','住宅型有料老人ホーム','小規模多機能','看護多機能','デイサービス','デイケア'];
-export const facilities={看護:['急性期病院','慢性期・療養病院','クリニック','特養','訪問看護(施設)','訪問看護(居宅)','デイサービス','看多機','その他'],介護:['特養','老健','有料(介護付)','住宅型有料','サ高住','グループホーム','デイサービス','訪問介護','病院(看護助手)','その他']};
-facilities.看護=Array.from(new Set([...facilities.看護,...additionalFacilities]));facilities.介護=Array.from(new Set([...facilities.介護,...additionalFacilities]));
-export const hours=['早出','日勤','遅出','夜勤','夜勤専従','こだわらない'];
-export const days=['週1日','週2日','週3日','週4日','週5日','週2-3日','週3-4日','週4-5日','相談して決めたい'] as const;
-export const callTimes=[...Array.from({length:20},(_,i)=>`${String(10+Math.floor(i/2)).padStart(2,'0')}:${i%2?'30':'00'}`),'いつでも可'];
-export const tourTimes=['午前','午後','夕方以降','終日OK'];
-export const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo'}).format(new Date());
-export function monthLater(){const [y,m,d]=today().split('-').map(Number);const last=new Date(Date.UTC(y,m+1,0)).getUTCDate();return new Date(Date.UTC(y,m,Math.min(d,last))).toISOString().slice(0,10);}
-export const monthsOf=(years:number)=>Math.round(years*12);
-export function duration(years:number){const m=monthsOf(years);return `${Math.floor(m/12)}年${m%12?`${m%12}ヶ月`:''}`;}
+export * from './options';
+import {ages,statuses,qualifications,facilities,hours,days,callTimes,tourTimes,today,monthsOf,duration} from './options';
 const date=z.string().refine(v=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v&&v>=today(),'今日以降の正しい日付を選択してください');
 const optDate=z.union([z.literal(''),date]).default('');
 const list=(choices:readonly string[])=>z.array(z.string()).min(1).max(choices.length).refine(a=>new Set(a).size===a.length&&a.every(v=>choices.includes(v)),'選択項目を確認してください');
@@ -43,7 +31,7 @@ export const entrySchema=z.object({
 export type EntryInput=z.infer<typeof entrySchema>;
 export type Entry={gender?:string;desired_employment?:string;commute_method?:string;nearest_station?:string;commute_minutes?:string;weekend_availability?:string;id:string;created_at:string;status:typeof statuses[number];full_name:string;phone:string;postal_code?:string;age:string;job_type:'看護'|'介護';qualifications:string;status_current:string;recent_emp_type:string;total_exp:number;history_summary:string;work_hours:string;work_days:string;call_date_1:string;call_time_1:string;call_date_2:string;call_time_2:string;tour_date_1:string;tour_time_1:string;tour_date_2:string;tour_time_2:string;tour_date_3:string;tour_time_3:string;join_date:string;early_join:string;user_memo:string;internal_memo:string;updated_at:string;notification_status:string;appointments?:{starts_at:string;ends_at:string;state:string;event_url:string|null}[]};
 export function record(v:EntryInput){const {request_id,histories,earlier_facilities,website,turnstile_token,...data}=v;void website;void turnstile_token;const recent=histories.reduce((sum,h)=>sum+monthsOf(h.years),0),earlier=Math.max(0,monthsOf(v.total_exp)-recent);return {...data,qualifications:v.qualifications.join(','),work_hours:v.work_hours.join(','),history_summary:v.total_exp===0?'未経験':`【直近${duration(recent/12)}の就業経験・新しい順】\n`+histories.map((h,i)=>`${i+1}. ${h.facility}：${duration(h.years)}${i===0?'（最新）':''}`).join('\n')+(earlier>0?`\n【それ以前の経験・まとめ】\n${earlier_facilities.join('・')}：計${duration(earlier/12)}`:''),request_id};}
-export function recommendation(e:Entry,sender:{company:string;name:string}={company:'株式会社〇〇',name:'〇〇'}){const tours=[1,2,3].map(i=>[e[`tour_date_${i}` as keyof Entry],e[`tour_time_${i}` as keyof Entry]].filter(Boolean).join(' ')).filter(Boolean);return `お世話になっております。\n${sender.company}の${sender.name}です。\n\nこの度、派遣にてぜひ一度ご面談いただきたい求職者様がおりますので、ご紹介いたします。\n簡単ではございますが、以下に詳細を記載いたします。\n\n【候補者情報】\n・年代：${e.age}\n${e.gender&&e.gender!=='回答しない'?`・性別：${e.gender}\n`:''}・希望雇用形態：${e.desired_employment||'未確認'}\n・通勤：${[e.commute_method,e.commute_minutes].filter(Boolean).join('／')||'未確認'}\n・土日祝：${e.weekend_availability||'未確認'}\n・職種：${e.job_type}\n・資格：${e.qualifications}\n・通算経験：${duration(e.total_exp)}\n・希望勤務：${e.work_days}／${e.work_hours}\n・入職希望日：${e.join_date}（${e.early_join}）\n\n【主なご経験】\n${e.history_summary}\n\n【面談候補日】\n${tours.length?tours.map(t=>'・'+t).join('\n'):'別途調整のうえ、ご案内いたします。'}\n\n本件につきまして、スキルシートを添付しておりますので、併せてご確認いただけますと幸いです。\nご面談の可否やご都合のよい日時について、ご教示いただけますでしょうか。\n\n何卒よろしくお願いいたします。`;}
+export function recommendation(e:Entry,sender:{company:string;name:string}={company:'株式会社〇〇',name:'〇〇'}){const tours=[1,2,3].map(i=>[e[`tour_date_${i}` as keyof Entry],e[`tour_time_${i}` as keyof Entry]].filter(Boolean).join(' ')).filter(Boolean);return `人材派遣のご案内\n\nお世話になっております。\n${sender.company}の${sender.name}です。\n\nこの度、派遣にてぜひ一度ご面談いただきたい求職者様がおりますので、ご紹介いたします。\n簡単ではございますが、以下に詳細を記載いたします。\n\n【候補者情報】\n・年代：${e.age}\n${e.gender&&e.gender!=='回答しない'?`・性別：${e.gender}\n`:''}・通勤：${[e.commute_method,e.commute_minutes].filter(Boolean).join('／')||'未確認'}\n・土日祝：${e.weekend_availability||'未確認'}\n・職種：${e.job_type}\n・資格：${e.qualifications}\n・通算経験：${duration(e.total_exp)}\n・希望勤務：${e.work_days}／${e.work_hours}\n・入職希望日：${e.join_date}（${e.early_join}）\n\n【主なご経験】\n${e.history_summary}\n\n【面談候補日】\n${tours.length?tours.map(t=>'・'+t).join('\n'):'別途調整のうえ、ご案内いたします。'}\n\n本件につきまして、スキルシートを添付しておりますので、併せてご確認いただけますと幸いです。\nご面談の可否やご都合のよい日時について、ご教示いただけますでしょうか。\n\n何卒よろしくお願いいたします。`;}
 
 export function validateCallSlot(e:Pick<Entry,'call_date_1'|'call_date_2'|'call_time_1'|'call_time_2'>,start:string){
  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:(00|30):00\+09:00$/.test(start)||!Number.isFinite(Date.parse(start)))throw new Error('日本時間・30分単位の日時を指定してください');
