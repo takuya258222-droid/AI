@@ -1,9 +1,14 @@
 import {db} from './server';
 import {notifyEntry} from './notify';
-import {syncQueuedCalendarEntry} from './calendar-sync';
+import {queueCalendarEntry,syncQueuedCalendarEntry} from './calendar-sync';
 
 export async function catchUpGoogleIntegrations(limit=20){
  const client=db();
+ // Recover work if the process stopped after committing an entry but before
+ // its after-response callback could create the calendar queue record.
+ const {data:unqueued,error:queueError}=await client.from('entries').select('id,appointments(entry_id)').is('appointments','null').order('created_at').limit(limit);
+ if(queueError)throw queueError;
+ for(const entry of unqueued||[]){try{await queueCalendarEntry(entry.id);}catch{console.error('Calendar queue recovery deferred; saved entry retained');}}
  const [{data:mail,error:mailError},{data:calendar,error:calendarError}]=await Promise.all([
   client.from('notifications').select('entry_id').neq('state','sent').lt('attempts',5).order('entry_id').limit(limit),
   client.from('appointments').select('entry_id').in('state',['pending','failed']).lt('attempts',5).order('starts_at').limit(limit)

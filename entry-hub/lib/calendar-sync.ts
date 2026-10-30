@@ -19,7 +19,7 @@ export async function queueCalendarEntry(id:string){
  const {data:entry,error}=await client.from('entries').select('call_date_1,call_time_1').eq('id',id).single();
  if(error)throw error;const slot=preferredSlot(entry);
  const saved=await client.from('appointments').insert({entry_id:id,starts_at:slot.start,ends_at:slot.endsAt,all_day:slot.allDay,state:'pending'});
- if(saved.error)throw saved.error;
+ if(saved.error&&saved.error.code!=='23505')throw saved.error;
 }
 
 async function mark(appointment:Appointment,state:string,lastError:string|null,eventUrl:string|null=null){
