@@ -17,7 +17,9 @@ await db.exec('set role anon');await assert.rejects(()=>db.query('select * from 
 await db.exec('set role authenticated');await assert.rejects(()=>db.query('select * from public.entries'));await db.exec('reset role');
 const a=await db.query<{ok:boolean}>('select public.claim_notification($1) ok',[first]);const b=await db.query<{ok:boolean}>('select public.claim_notification($1) ok',[first]);assert.equal(a.rows[0].ok,true);assert.equal(b.rows[0].ok,false);
 await db.query('insert into appointments(entry_id,starts_at,ends_at) values($1,$2,$3)',[first,'2099-01-01T10:00:00+09:00','2099-01-01T11:00:00+09:00']);
-await assert.rejects(()=>db.query('insert into appointments(entry_id,starts_at,ends_at) values($1,$2,$3)',[second,'2099-01-01T10:30:00+09:00','2099-01-01T11:30:00+09:00']));
-await db.query('insert into appointments(entry_id,starts_at,ends_at) values($1,$2,$3)',[second,'2099-01-01T11:00:00+09:00','2099-01-01T12:00:00+09:00']);
+await db.query('insert into appointments(entry_id,starts_at,ends_at) values($1,$2,$3)',[second,'2099-01-01T10:30:00+09:00','2099-01-01T11:30:00+09:00']);
+await db.query("update appointments set state='confirmed' where entry_id=$1",[first]);
+await assert.rejects(()=>db.query("update appointments set state='confirmed' where entry_id=$1",[second]));
+await db.query("update appointments set starts_at=$2,ends_at=$3,state='confirmed' where entry_id=$1",[second,'2099-01-01T11:00:00+09:00','2099-01-01T12:00:00+09:00']);
 for(let i=0;i<3;i++)await insert({...payload,request_id:crypto.randomUUID()});await assert.rejects(()=>insert({...payload,request_id:crypto.randomUUID()}),/RATE_LIMIT/);
 }finally{await db.close();}});

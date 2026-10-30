@@ -71,3 +71,13 @@ alter table public.appointments drop constraint appointments_check;
 alter table public.appointments drop constraint appointments_tstzrange_excl;
 alter table public.appointments add constraint appointment_duration check((all_day and ends_at=starts_at+interval '24 hours') or (not all_day and ends_at-starts_at in (interval '30 minutes',interval '1 hour')));
 alter table public.appointments add constraint appointment_no_overlap exclude using gist(tstzrange(starts_at,ends_at,'[)') with &&) where (not all_day);
+
+-- Google再接続時のカレンダー追いつき処理。
+alter table public.appointments
+ add column attempts integer not null default 0,
+ add column last_error text,
+ add column synced_at timestamptz;
+alter table public.appointments drop constraint appointment_no_overlap;
+alter table public.appointments add constraint appointments_state_check check(state in ('pending','syncing','confirmed','failed','conflict','expired'));
+alter table public.appointments add constraint appointment_no_overlap exclude using gist(tstzrange(starts_at,ends_at,'[)') with &&) where (state='confirmed' and not all_day);
+create index appointments_sync_queue on public.appointments(state,starts_at) where state in ('pending','failed');

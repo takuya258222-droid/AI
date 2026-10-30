@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {db,env,HttpError} from '@/lib/server';
 import {appOrigin,assertGoogleIdentity,callbackUrl,decryptToken,encryptToken,OAUTH_COOKIE,stateHash,validState} from '@/lib/google-oauth';
+import {catchUpGoogleIntegrations} from '@/lib/integration-catchup';
 function finish(result:string){const response=NextResponse.redirect(appOrigin()+'/admin?google='+result,303);response.cookies.set(OAUTH_COOKIE,'',{httpOnly:true,secure:true,sameSite:'lax',path:'/',maxAge:0});response.headers.set('Cache-Control','no-store');response.headers.set('Referrer-Policy','no-referrer');return response;}
 export async function GET(req:NextRequest){try{
  const state=req.nextUrl.searchParams.get('state')||'',cookie=req.cookies.get(OAUTH_COOKIE)?.value||'';
@@ -14,5 +15,6 @@ export async function GET(req:NextRequest){try{
  if(!exchange.ok)return finish('exchange_failed');const tokens=await exchange.json();if(!tokens.access_token||!tokens.refresh_token)return finish('missing_refresh');
  const identity=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:`Bearer ${tokens.access_token}`},signal:AbortSignal.timeout(10000)});if(!identity.ok)return finish('identity_failed');const profile=await identity.json();assertGoogleIdentity(profile,tokens.scope||'');
  const lifetime=Number(tokens.refresh_token_expires_in);const {error:save}=await client.from('google_connections').upsert({id:'primary',email:profile.email,client_id:env('GOOGLE_CLIENT_ID'),refresh_token:encryptToken(tokens.refresh_token),connected_by:pending.staff_id,connected_at:new Date().toISOString(),expires_at:Number.isFinite(lifetime)&&lifetime>0?new Date(Date.now()+lifetime*1000).toISOString():null});if(save)return finish('save_failed');
+ await catchUpGoogleIntegrations().catch(()=>null);
  return finish('connected');
 }catch(e){return finish(e instanceof HttpError&&['account_mismatch','missing_scope'].includes(e.message)?e.message:'failed');}}
