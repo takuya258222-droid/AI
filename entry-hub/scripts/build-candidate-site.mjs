@@ -4,6 +4,7 @@ import {resolve} from 'node:path';
 const dir=resolve('.candidate-site');
 await rm(dir,{recursive:true,force:true});await mkdir(dir+'/app',{recursive:true});
 for(const file of ['page.tsx','layout.tsx','globals.css'])await cp('app/'+file,dir+'/app/'+file);
+await mkdir(dir+'/app/privacy',{recursive:true});await cp('app/privacy/page.tsx',dir+'/app/privacy/page.tsx');
 await mkdir(dir+'/components');await cp('components/EntryForm.tsx',dir+'/components/EntryForm.tsx');
 await mkdir(dir+'/lib');for(const file of ['model.ts','options.ts'])await cp('lib/'+file,dir+'/lib/'+file);
 for(const file of ['tsconfig.json','postcss.config.mjs','package.json'])await cp(file,dir+'/'+file);

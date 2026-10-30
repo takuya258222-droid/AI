@@ -1,0 +1,7 @@
+import Link from 'next/link';
+
+export const metadata={title:'プライバシーポリシー | CARE ENTRY'};
+
+export default function PrivacyPage(){return <><Header/><main className="shell"><article className="panel max-w-3xl mx-auto"><p className="eyebrow">PRIVACY POLICY</p><h1>プライバシーポリシー</h1><p>CARE ENTRYは、看護・介護分野のお仕事相談、職業紹介・人材派遣の連絡および選考手続きのために、必要な情報を取り扱います。</p><h2>取得する情報</h2><p>氏名、電話番号、年代、資格、職歴、勤務条件、連絡・見学希望日時、その他フォームに入力された情報を取得します。</p><h2>利用目的</h2><p>お仕事のご案内、希望条件の確認、面談・見学の日程調整、求人事業者への候補者情報の提供、応募者への連絡、サービスの運用および改善に利用します。法人へ候補者情報を案内する際は、業務上必要な範囲を除き、氏名や電話番号などの直接識別情報を含めません。</p><h2>Googleユーザーデータの利用</h2><p>運営担当者が許可したGoogleアカウントについて、Gmail APIは応募通知などの業務メール送信に、Google Calendar APIは連絡・面談予定の空き時間確認、登録および管理にのみ使用します。取得したGoogleユーザーデータを広告、販売、信用評価その他これらと無関係な目的には利用しません。</p><h2>保存と第三者提供</h2><p>情報は、サービス運営に必要なクラウド基盤上で適切に管理します。法令に基づく場合、本人の同意がある場合、または業務遂行に必要な委託先へ必要最小限を取り扱わせる場合を除き、第三者へ提供しません。Google OAuthの更新用認証情報は暗号化して保存し、Googleユーザーデータを販売しません。</p><h2>保存期間・削除・連携解除</h2><p>利用目的に必要な期間保存し、不要となった情報は適切な方法で削除します。Google連携はCARE ENTRYの管理画面またはGoogleアカウントの「サードパーティ製アプリとの接続」から解除できます。情報の確認・訂正・削除を希望する場合は、下記窓口へご連絡ください。</p><h2>お問い合わせ</h2><p>CARE ENTRY 運営担当<br/>メール：<a href="mailto:t-sugimoto@kikari.co.jp">t-sugimoto@kikari.co.jp</a></p><p className="mini-note">制定日：2026年10月30日</p><Link className="btn secondary" href="/">求職者フォームへ戻る</Link></article></main></>}
+
+function Header(){return <header className="top"><div className="brand">CARE ENTRY</div><small>プライバシーポリシー</small></header>}
