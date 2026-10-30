@@ -16,6 +16,7 @@ type State={mailFail?:boolean;claim?:boolean;busy?:boolean;calendarFail?:boolean
 function install(s:State){const original=globalThis.fetch;globalThis.fetch=async(input,init)=>{const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;const method=init?.method||'GET';let body:Record<string,unknown>={};if(typeof init?.body==='string'){try{body=JSON.parse(init.body);}catch{}}
  if(url.includes('/auth/v1/user'))return json({id:'3884f950-cd88-4b8f-829f-87002c5ef91a',aud:'authenticated',role:'authenticated',email:'test@example.test'});
  if(url.includes('/rest/v1/staff'))return json([{user_id:'3884f950-cd88-4b8f-829f-87002c5ef91a'}]);
+ if(url.includes('/rest/v1/integration_results'))return json(null);
  if(url.includes('/rpc/claim_notification'))return json(s.claim!==false);
  if(url.includes('/rest/v1/notifications')){(s.notes??=[]).push(body);return json(method==='GET'?[]:null);}
  if(url.includes('/rest/v1/entries')&&new URL(url).searchParams.get('appointments')==='is.null')return json(s.appointment?[]:[{id:entry.id,appointments:null}]);

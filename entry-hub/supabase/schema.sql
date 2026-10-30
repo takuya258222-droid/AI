@@ -81,3 +81,16 @@ alter table public.appointments drop constraint appointment_no_overlap;
 alter table public.appointments add constraint appointments_state_check check(state in ('pending','syncing','confirmed','failed','conflict','expired'));
 alter table public.appointments add constraint appointment_no_overlap exclude using gist(tstzrange(starts_at,ends_at,'[)') with &&) where (state='confirmed' and not all_day);
 create index appointments_sync_queue on public.appointments(state,starts_at) where state in ('pending','failed');
+
+create table public.integration_results (
+ id bigint generated always as identity primary key,
+ kind text not null check(kind in ('mail','calendar')),
+ ok boolean not null,
+ created_at timestamptz not null default now()
+);
+create index integration_results_latest on public.integration_results(kind,created_at desc);
+create index integration_results_success on public.integration_results(kind,created_at desc) where ok;
+alter table public.integration_results enable row level security;
+revoke all on public.integration_results from public,anon,authenticated;
+grant select,insert on public.integration_results to service_role;
+grant usage,select on sequence public.integration_results_id_seq to service_role;

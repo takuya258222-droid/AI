@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {calendarConfigured,calendarRequest,calendarToken} from './calendar';
 import {db,env,HttpError} from './server';
+import {recordIntegrationResult} from './integration-health';
 
 type Appointment={entry_id:string;starts_at:string;ends_at:string;all_day:boolean;state:string;attempts:number;event_url:string|null};
 const japanDate=(value:string)=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo'}).format(new Date(value));
@@ -44,6 +45,7 @@ export async function syncQueuedCalendarEntry(id:string){
    response=await calendarRequest(token,`calendars/${cid}/events`,{method:'POST',body:JSON.stringify({id:eventId,summary:`${appointment.all_day?'電話連絡可能日（時間未定）':'電話面談'} ${id}`,description:`管理画面で詳細を確認：${env('APP_URL')}/admin`,transparency:appointment.all_day?'transparent':'opaque',start:appointment.all_day?{date:japanDate(appointment.starts_at)}:{dateTime:appointment.starts_at,timeZone:'Asia/Tokyo'},end:appointment.all_day?{date:japanDate(appointment.ends_at)}:{dateTime:appointment.ends_at,timeZone:'Asia/Tokyo'}})});
    if(response.status===409)response=await calendarRequest(token,`calendars/${cid}/events/${eventId}`);if(!response.ok)throw new Error('予定を登録できませんでした');event=await response.json();
   }else throw new Error('カレンダーを確認できませんでした');
-  await mark(appointment,'confirmed',null,event.htmlLink||null);return {state:'confirmed',url:event.htmlLink||null};
- }catch(error){await mark(appointment,'failed',error instanceof Error?error.message:'カレンダー連携に失敗しました');return {state:'failed',url:null};}
+  if(event.status==='cancelled')throw new Error('Google側で削除された予定です。日時を確認してください');
+  await mark(appointment,'confirmed',null,event.htmlLink||null);await recordIntegrationResult('calendar',true);return {state:'confirmed',url:event.htmlLink||null};
+ }catch(error){await recordIntegrationResult('calendar',false);await mark(appointment,'failed',error instanceof Error?error.message:'カレンダー連携に失敗しました');return {state:'failed',url:null};}
 }

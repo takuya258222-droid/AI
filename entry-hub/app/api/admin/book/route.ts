@@ -4,6 +4,7 @@ import {z} from 'zod';
 import {staff,body,failure,HttpError,env} from '@/lib/server';
 import {calendarConfigured,calendarToken,calendarRequest} from '@/lib/calendar';
 import {validateCallSlot} from '@/lib/model';
+import {recordIntegrationResult} from '@/lib/integration-health';
 export async function POST(req:NextRequest){try{const client=await staff(req);if(!await calendarConfigured())throw new HttpError(503,'自動連携は未設定です。「Googleカレンダーで作成」またはICSをご利用ください');const parsed=z.object({id:z.string().regex(/^ENT-\d{14}$/),start:z.string()}).safeParse(await body(req));if(!parsed.success)throw new HttpError(400,'予約内容を確認してください');
  const {id}=parsed.data;let {start}=parsed.data;const {data:e,error}=await client.from('entries').select('*').eq('id',id).single();if(error)throw error;
  const allDay=e.call_time_1==='いつでも可';if(allDay)start=e.call_date_1+'T00:00:00+09:00';let end:string;try{end=validateCallSlot(e,start);}catch(err){throw new HttpError(400,(err as Error).message);}
@@ -20,6 +21,7 @@ export async function POST(req:NextRequest){try{const client=await staff(req);if
  if(eventResponse.status===409)eventResponse=await calendarRequest(token,`calendars/${cid}/events/${eventId}`);
  if(!eventResponse.ok)throw new HttpError(502,'登録結果を確認できません。同じ日時で再試行してください');event=await eventResponse.json();
  }else throw new HttpError(502,'カレンダーを確認できません。同じ日時で再試行してください');
- const saved=await client.from('appointments').update({state:'confirmed',event_url:event.htmlLink}).eq('entry_id',id);if(saved.error)throw saved.error;
+ const saved=await client.from('appointments').update({state:'confirmed',event_url:event.htmlLink,synced_at:new Date().toISOString()}).eq('entry_id',id);if(saved.error)throw saved.error;
+ await recordIntegrationResult('calendar',true);
  return NextResponse.json({url:event.htmlLink});
  }catch(e){return failure(e);}}
