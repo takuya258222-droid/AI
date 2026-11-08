@@ -1,0 +1,46 @@
+name: Daily Data Update
+
+on:
+  schedule:
+    - cron: "30 22 * * *"  # 毎日07:30 JST (22:30 UTC)
+  workflow_dispatch:  # 手動実行も可能
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/github-check-tezbwr
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install google-api-python-client google-auth
+
+      - name: Fetch Google Sheets data
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: python scripts/fetch_sheets.py /tmp/sheets
+
+      - name: Build app data
+        run: python scripts/build_app_data.py /tmp/sheets /tmp/app_data.json
+
+      - name: Update HTML
+        run: python scripts/update_html.py /tmp/app_data.json docs/index.html
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          RECORDS=$(python -c "import json; print(len(json.load(open('/tmp/app_data.json'))))")
+          DATE=$(TZ=Asia/Tokyo date +%Y/%m/%d)
+          git add docs/index.html
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "chore: 日次データ更新 ${DATE}（関西${RECORDS}件）"
+          git push
