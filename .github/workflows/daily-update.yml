@@ -20,11 +20,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install dependencies (service account mode only)
+        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: pip install google-api-python-client google-auth
 
       - name: Fetch Google Sheets data
         env:
+          GAS_DEPLOY_URL: ${{ secrets.GAS_DEPLOY_URL }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: python scripts/fetch_sheets.py /tmp/sheets
 
