@@ -929,6 +929,9 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .mode-tab.active { background: var(--navy); color: #fff; border-color: var(--navy) }
+.mode-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 6px 4px; min-height: 52px }
+.mode-sub { font-size: 10.5px; font-weight: 500; color: var(--fg2) }
+.mode-tab.active .mode-sub { color: rgba(255,255,255,.8) }
 
 /* ===== 路線図コンポーネント（.rmf） ===== */
 .rmf-paused {
@@ -1000,6 +1003,13 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
 .rmf-sdot.transfer { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4.5px var(--rmf-color) }
 .rmf-stn.sel .rmf-sdot { background: var(--gold); border-color: var(--gold-dark) }
 .rmf-scnt { font-size: 11px; color: var(--fg2); margin-top: 4px; min-height: 14px }
+.rmf-quick { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 10px }
+.rmf-qbtn { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); color: var(--fg); font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer }
+.rmf-qbtn.active { background: var(--navy); border-color: var(--navy); color: #fff }
+.rmf-prefs { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 12px }
+.rmf-prefbtn { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); color: var(--fg2); font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer }
+.rmf-prefbtn.active { background: var(--navy); color: #fff; border-color: var(--navy) }
+.rmf-lcnt2 { color: var(--fg2); font-size: 12px; flex-shrink: 0 }
 .rmf-walkseg { display: flex; gap: 6px; align-items: center; margin-top: 12px }
 .rmf-wlabel { font-size: 12px; font-weight: 700; color: var(--fg2); flex-shrink: 0 }
 .rmf-wbtn {
@@ -1206,7 +1216,7 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
     <input type="text" id="q" placeholder="施設名・住所・駅名で検索（例：葛城市、天王寺区）" autocomplete="off">
     <button class="q-clear" id="qClear" type="button" hidden>&times;</button>
   </div>
-  <div class="mode-tabs" role="tablist" aria-label="場所の探し方"><button class="mode-tab active" id="modeTabDist" type="button" role="tab" aria-selected="true">住所・距離で探す</button><button class="mode-tab" id="modeTabLine" type="button" role="tab" aria-selected="false">路線図から探す</button></div>
+  <div class="mode-tabs" role="tablist" aria-label="場所の探し方"><button class="mode-tab active" id="modeTabDist" type="button" role="tab" aria-selected="true">住所・距離で探す<span class="mode-sub">住所や駅から半径で絞る</span></button><button class="mode-tab" id="modeTabLine" type="button" role="tab" aria-selected="false">路線図から探す<span class="mode-sub">府県→路線→駅で絞る</span></button></div>
   <div id="distPanel">
   <div class="dist-box">
     <div class="dist-wrap">
@@ -1232,6 +1242,8 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
     <input type="text" class="rmf-search" id="rmfSearch" placeholder="駅名で検索（例：天王寺）" autocomplete="off">
     <div class="rmf-suggest" id="rmfSuggest"></div>
   </div>
+  <div class="rmf-quick" id="rmfQuick"></div>
+  <div class="rmf-prefs" id="rmfPrefs" role="group" aria-label="都道府県から選ぶ"></div>
   <div class="rmf-acc" id="rmfAcc"></div>
   <div class="rmf-linename" id="rmfLineName"></div>
   <div class="rmf-strip" id="rmfStrip"></div>
@@ -2855,6 +2867,9 @@ var RMF_LINES = STN_PKG_LINES.map(function (L, idx) {
 });
 var RMF_LINE_BY_KEY = {};
 RMF_LINES.forEach(function (L) { RMF_LINE_BY_KEY[L.key] = L; });
+var RMF_LINE_PREFS = {"JR北陸線|JR西日本":["滋賀県"],"JR東海道新幹線|JR東海":["大阪府","京都府","滋賀県"],"JR東海道線|JR東海":["滋賀県"],"JR東海道線|JR西日本":["兵庫県","大阪府","京都府","滋賀県"],"JR湖西線|JR西日本":["京都府","滋賀県"],"JR草津線|JR西日本":["滋賀県"],"京阪京津線|京阪電気鉄道":["京都府","滋賀県"],"京阪石山坂本線|京阪電気鉄道":["滋賀県"],"信楽高原鐵道信楽線|信楽高原鐵道":["滋賀県"],"近江鉄道八日市線|近江鉄道":["滋賀県"],"近江鉄道多賀線|近江鉄道":["滋賀県"],"近江鉄道本線|近江鉄道":["滋賀県"],"JR奈良線|JR西日本":["京都府","奈良県"],"JR小浜線|JR西日本":["京都府"],"JR山陰線|JR西日本":["兵庫県","京都府"],"JR片町線|JR西日本":["大阪府","京都府"],"JR福知山線|JR西日本":["京都府","兵庫県"],"JR舞鶴線|JR西日本":["京都府"],"JR関西線|JR西日本":["大阪府","奈良県","京都府"],"京福北野線|京福電気鉄道":["京都府"],"京福嵐山本線|京福電気鉄道":["京都府"],"京都丹後鉄道宮津線|京都丹後鉄道":["兵庫県","京都府"],"京都丹後鉄道宮福線|京都丹後鉄道":["京都府"],"京都市営地下鉄東西線|京都市交通局":["京都府"],"京都市営地下鉄烏丸線|京都市交通局":["京都府"],"京阪宇治線|京阪電気鉄道":["京都府"],"京阪本線|京阪電気鉄道":["大阪府","京都府"],"京阪鴨東線|京阪電気鉄道":["京都府"],"叡山本線|叡山電鉄":["京都府"],"叡山電鉄鞍馬線|叡山電鉄":["京都府"],"嵯峨野観光線|嵯峨野観光鉄道":["京都府"],"近鉄京都線|近畿日本鉄道":["京都府","奈良県"],"阪急京都線|阪急電鉄":["大阪府","京都府"],"阪急嵐山線|阪急電鉄":["京都府"],"JRおおさか東線|JR西日本":["大阪府"],"JR大阪環状線|JR西日本":["大阪府"],"JR山陽新幹線|JR西日本":["兵庫県","大阪府"],"JR東西線|JR西日本":["兵庫県","大阪府"],"JR桜島線|JR西日本":["大阪府"],"JR関西空港線|JR西日本":["大阪府"],"JR阪和線|JR西日本":["大阪府"],"京阪中之島線|京阪電気鉄道":["大阪府"],"京阪交野線|京阪電気鉄道":["大阪府"],"北大阪急行南北線|北大阪急行電鉄":["大阪府"],"南海多奈川線|南海電気鉄道":["大阪府"],"南海本線|南海電気鉄道":["大阪府"],"南海空港線|南海電気鉄道":["大阪府"],"南海高師浜線|南海電気鉄道":["大阪府"],"南海高野線|南海電気鉄道":["大阪府"],"大阪メトロ中央線|Osaka Metro":["大阪府"],"大阪メトロ今里筋線|Osaka Metro":["大阪府"],"大阪メトロ千日前線|Osaka Metro":["大阪府"],"大阪メトロ南港ポートタウン線|Osaka Metro":["大阪府"],"大阪メトロ四つ橋線|Osaka Metro":["大阪府"],"大阪メトロ堺筋線|Osaka Metro":["大阪府"],"大阪メトロ御堂筋線|Osaka Metro":["大阪府"],"大阪メトロ谷町線|Osaka Metro":["大阪府"],"大阪メトロ長堀鶴見緑地線|Osaka Metro":["大阪府"],"大阪モノレール彩都線|大阪モノレール":["大阪府"],"大阪モノレール線|大阪モノレール":["大阪府"],"水間鉄道水間線|水間鉄道":["大阪府"],"泉北高速鉄道線|泉北高速鉄道":["大阪府"],"能勢電鉄妙見線|能勢電鉄":["大阪府","兵庫県"],"近鉄けいはんな線|近畿日本鉄道":["大阪府","奈良県"],"近鉄信貴線|近畿日本鉄道":["大阪府"],"近鉄南大阪線|近畿日本鉄道":["大阪府","奈良県"],"近鉄大阪線|近畿日本鉄道":["大阪府","奈良県"],"近鉄奈良線|近畿日本鉄道":["大阪府","奈良県"],"近鉄道明寺線|近畿日本鉄道":["大阪府"],"近鉄長野線|近畿日本鉄道":["大阪府"],"近鉄難波線|近畿日本鉄道":["大阪府"],"阪堺上町線|阪堺電気軌道":["大阪府"],"阪堺線|阪堺電気軌道":["大阪府"],"阪急千里線|阪急電鉄":["大阪府"],"阪急宝塚線|阪急電鉄":["兵庫県","大阪府"],"阪急神戸線|阪急電鉄":["兵庫県","大阪府"],"阪急箕面線|阪急電鉄":["大阪府"],"阪神なんば線|阪神電気鉄道":["兵庫県","大阪府"],"阪神本線|阪神電気鉄道":["兵庫県","大阪府"],"JR加古川線|JR西日本":["兵庫県"],"JR姫新線|JR西日本":["兵庫県"],"JR山陽線|JR西日本":["兵庫県"],"JR播但線|JR西日本":["兵庫県"],"JR赤穂線|JR西日本":["兵庫県"],"ポートアイランド線|神戸新交通":["兵庫県"],"六甲アイランド線|神戸新交通":["兵庫県"],"北条鉄道北条線|北条鉄道":["兵庫県"],"山陽本線|山陽電気鉄道":["兵庫県"],"山陽網干線|山陽電気鉄道":["兵庫県"],"智頭急行智頭線|智頭急行":["兵庫県"],"神戸市営地下鉄北神線|神戸市交通局":["兵庫県"],"神戸市営地下鉄海岸線|神戸市交通局":["兵庫県"],"神戸市営地下鉄西神・山手線|神戸市交通局":["兵庫県"],"神戸電鉄三田線|神戸電鉄":["兵庫県"],"神戸電鉄公園都市線|神戸電鉄":["兵庫県"],"神戸電鉄有馬線|神戸電鉄":["兵庫県"],"神戸電鉄神戸高速線|神戸電鉄":["兵庫県"],"神戸電鉄粟生線|神戸電鉄":["兵庫県"],"能勢電鉄日生線|能勢電鉄":["兵庫県"],"阪急今津線|阪急電鉄":["兵庫県"],"阪急伊丹線|阪急電鉄":["兵庫県"],"阪急甲陽線|阪急電鉄":["兵庫県"],"阪急神戸高速線|阪急電鉄":["兵庫県"],"阪神武庫川線|阪神電気鉄道":["兵庫県"],"阪神神戸高速線|阪神電気鉄道":["兵庫県"],"JR和歌山線|JR西日本":["奈良県"],"JR桜井線|JR西日本":["奈良県"],"近鉄吉野線|近畿日本鉄道":["奈良県"],"近鉄天理線|近畿日本鉄道":["奈良県"],"近鉄御所線|近畿日本鉄道":["奈良県"],"近鉄橿原線|近畿日本鉄道":["奈良県"],"近鉄生駒線|近畿日本鉄道":["奈良県"],"近鉄田原本線|近畿日本鉄道":["奈良県"]};
+RMF_LINES.forEach(function (L) { L.prefs = RMF_LINE_PREFS[L.key] || []; });
+var RMF_QUICK = [["大阪","JR東海道線|JR西日本"],["京都","JR東海道線|JR西日本"],["三ノ宮","JR東海道線|JR西日本"],["天王寺","JR大阪環状線|JR西日本"],["難波","南海本線|南海電気鉄道"],["奈良","JR関西線|JR西日本"],["高槻","JR東海道線|JR西日本"],["姫路","JR山陽線|JR西日本"],["西宮北口","阪急神戸線|阪急電鉄"],["草津","JR東海道線|JR西日本"]];
 var RMF_STN_COUNT = {}; // 駅名 -> 登場路線数（乗換駅の二重丸判定）
 RMF_LINES.forEach(function (L) {
   var seen = {};
@@ -2865,7 +2880,8 @@ function rmfStationKey(st) { return st.lineKey + '|' + st.name; }
 // ---------- 状態（INTERACTION 状態モデル） ----------
 var RMF = {
   displayLineKey: RMF_LINES.length ? RMF_LINES[0].key : null,
-  appliedLineKey: null,       // 全駅モードの路線（個別選択が空のときだけ存在）
+  appliedLines: new Set(),    // 全駅モードの路線集合（個別選択が空のときだけ存在・複数路線可）
+  browsePref: null,           // 路線図の閲覧レンズ（都道府県）※選択の適用範囲ではない
   sel: new Map(),             // 駅キー -> station obj（全路線をまたぐ1集合）
   walk: 15,                   // 徒歩分（既定15）
   paused: false,              // 関東モードで保持＋停止
@@ -2880,14 +2896,17 @@ if (RMF_LINES.length) RMF.openOps[RMF_LINES[0].op] = true;
 
 function rmfActive() {
   return typeof currentRegion !== 'undefined' && currentRegion === 'kansai' && !RMF.paused &&
-    (RMF.sel.size > 0 || !!RMF.appliedLineKey);
+    (RMF.sel.size > 0 || RMF.appliedLines.size > 0);
 }
 function rmfTargets() {
   var arr = [];
   if (RMF.sel.size > 0) {
     RMF.sel.forEach(function (st) { arr.push(st); });
-  } else if (RMF.appliedLineKey && RMF_LINE_BY_KEY[RMF.appliedLineKey]) {
-    arr = RMF_LINE_BY_KEY[RMF.appliedLineKey].stations.slice();
+  } else if (RMF.appliedLines.size > 0) {
+    RMF.appliedLines.forEach(function (lk) {
+      var L = RMF_LINE_BY_KEY[lk];
+      if (L) arr = arr.concat(L.stations);
+    });
   }
   arr.sort(function (a, b) {
     var la = RMF_LINE_BY_KEY[a.lineKey].idx, lb = RMF_LINE_BY_KEY[b.lineKey].idx;
@@ -2978,7 +2997,7 @@ function applyStationFilter(list) {
   if (typeof RMF === 'undefined' || !RMF) return list;
   RMF.badgeByUid = new Map();
   if (typeof currentRegion === 'undefined' || currentRegion !== 'kansai') return list;
-  if (!RMF.sel.size && !RMF.appliedLineKey) return list;
+  if (!RMF.sel.size && !RMF.appliedLines.size) return list;
   // linePaused は地域チェックで担保する（RMF.paused は UI 同期用。地域復帰直後の
   // render では前地域の値が残るため、フィルター判定には使わない）
   var targets = rmfTargets();
@@ -3045,11 +3064,99 @@ function rmfLineSelCount(lineKey) {
   return n;
 }
 
+
+// ---------- 都道府県ファーストの閲覧レンズ ----------
+var RMF_PREF_ORDER = ['大阪府', '京都府', '兵庫県', '奈良県', '滋賀県'];
+function rmfEnsureBrowsePref() {
+  if (RMF.browsePref !== null) return;
+  RMF.browsePref = (typeof pref !== 'undefined' && typeof KANSAI_P !== 'undefined' && KANSAI_P.has(pref)) ? pref : '大阪府';
+}
+function rmfRenderQuick() {
+  var box = rmfEl('rmfQuick');
+  if (!box) return;
+  var html = '<span class="rmf-wlabel">主要駅</span>';
+  RMF_QUICK.forEach(function (q) {
+    var key = q[1] + '|' + q[0];
+    var on = RMF.sel.has(key);
+    html += '<button type="button" class="rmf-qbtn' + (on ? ' active' : '') + '" data-skey="' + rmfEsc(key) + '" aria-pressed="' + on + '">' + rmfEsc(q[0]) + '</button>';
+  });
+  box.innerHTML = html;
+  box.querySelectorAll('.rmf-qbtn').forEach(function (b) {
+    b.addEventListener('click', function () { rmfToggleStation(b.dataset.skey); });
+  });
+}
+
+function rmfRenderPrefs() {
+  var box = rmfEl('rmfPrefs');
+  if (!box) return;
+  rmfEnsureBrowsePref();
+  var html = '<span class="rmf-wlabel">都道府県</span>';
+  RMF_PREF_ORDER.forEach(function (p) {
+    var on = RMF.browsePref === p;
+    html += '<button type="button" class="rmf-prefbtn' + (on ? ' active' : '') + '" data-pref="' + rmfEsc(p) + '" aria-pressed="' + on + '">' + rmfEsc(KANSAI_PREF_LABELS[p] || p) + '</button>';
+  });
+  var onAll = RMF.browsePref === 'all';
+  html += '<button type="button" class="rmf-prefbtn' + (onAll ? ' active' : '') + '" data-pref="all" aria-pressed="' + onAll + '">すべて</button>';
+  box.innerHTML = html;
+  box.querySelectorAll('.rmf-prefbtn').forEach(function (b) {
+    b.addEventListener('click', function () { rmfSetBrowsePref(b.dataset.pref); });
+  });
+}
+function rmfSetBrowsePref(p) {
+  RMF.browsePref = p;
+  if (p !== 'all') {
+    var disp = RMF_LINE_BY_KEY[RMF.displayLineKey];
+    if (!disp || (disp.prefs || []).indexOf(p) < 0) {
+      for (var i = 0; i < RMF_LINES.length; i++) {
+        if ((RMF_LINES[i].prefs || []).indexOf(p) >= 0) {
+          RMF.displayLineKey = RMF_LINES[i].key;
+          RMF.openOps[RMF_LINES[i].op] = true;
+          break;
+        }
+      }
+    } else {
+      RMF.openOps[disp.op] = true;
+    }
+  }
+  rmfRenderPrefs();
+  rmfRenderAccordion();
+  rmfRenderStrip();
+}
+
+// 路線ごとの徒歩圏件数（現在の徒歩での絶対件数・メモ化）
+function rmfLineCaseCount(lineKey) {
+  var cacheKey = 'L|' + lineKey + '@' + RMF.walk;
+  if (RMF.countsCache.has(cacheKey)) return RMF.countsCache.get(cacheKey);
+  var line = RMF_LINE_BY_KEY[lineKey];
+  var total = 0;
+  if (line) {
+    if (!RMF_RESOLVED_ALL) {
+      RMF_RESOLVED_ALL = [];
+      for (var i = 0; i < D_KANSAI.length; i++) RMF_RESOLVED_ALL.push(stnResolve(D_KANSAI[i]));
+    }
+    var limitKm = RMF.walk * 80 / 1000;
+    for (var j = 0; j < RMF_RESOLVED_ALL.length; j++) {
+      var c = RMF_RESOLVED_ALL[j];
+      if (!c) continue;
+      for (var s = 0; s < line.stations.length; s++) {
+        var t = line.stations[s];
+        if (Math.abs(c[0] - t.lat) * 110.0 > limitKm) continue;
+        if (Math.abs(c[1] - t.lon) * 90.0 > limitKm) continue;
+        if (haversine(c[0], c[1], t.lat, t.lon) <= limitKm) { total++; break; }
+      }
+    }
+  }
+  RMF.countsCache.set(cacheKey, total);
+  return total;
+}
+
 function rmfRenderAccordion() {
   var box = rmfEl('rmfAcc');
   if (!box) return;
+  rmfEnsureBrowsePref();
   var groups = [], byOp = {};
   RMF_LINES.forEach(function (L) {
+    if (RMF.browsePref !== 'all' && (L.prefs || []).indexOf(RMF.browsePref) < 0) return;
     if (!byOp[L.op]) { byOp[L.op] = []; groups.push(L.op); }
     byOp[L.op].push(L);
   });
@@ -3062,11 +3169,12 @@ function rmfRenderAccordion() {
       html += '<div class="rmf-lines">';
       byOp[op].forEach(function (L) {
         var n = rmfLineSelCount(L.key);
-        var isApplied = (RMF.appliedLineKey === L.key && RMF.sel.size === 0);
+        var isApplied = (RMF.appliedLines.has(L.key) && RMF.sel.size === 0);
         var isDisp = (RMF.displayLineKey === L.key);
         html += '<button type="button" class="rmf-line' + (isDisp ? ' disp' : '') + '" data-line="' + rmfEsc(L.key) + '">'
           + '<span class="rmf-lcolor" style="background:' + L.color + '"></span>'
           + '<span class="rmf-lname">' + rmfEsc(L.name) + '</span>'
+          + '<span class="rmf-lcnt2">' + rmfLineCaseCount(L.key) + '件</span>'
           + ((n > 0 || isApplied) ? '<span class="rmf-dot" aria-label="選択中"></span>' : '')
           + (n > 0 ? '<span class="rmf-lcnt">（' + n + '）</span>' : '')
           + (isApplied ? '<span class="rmf-lcnt">全駅</span>' : '')
@@ -3113,7 +3221,7 @@ function rmfRenderStrip() {
     b.addEventListener('click', function () { rmfToggleStation(b.dataset.skey); });
   });
   var nameEl = rmfEl('rmfLineName');
-  if (nameEl) nameEl.textContent = line.name + '（' + line.op + '）';
+  if (nameEl) nameEl.textContent = line.name + '（' + line.op + '） 全' + line.stations.length + '駅';
 }
 
 function rmfRenderWalk() {
@@ -3130,20 +3238,22 @@ function rmfRenderChips() {
   var box = rmfEl('rmfChips');
   if (!box) return;
   var html = '';
-  if (RMF.appliedLineKey && RMF.sel.size === 0) {
-    var L = RMF_LINE_BY_KEY[RMF.appliedLineKey];
-    if (L) html += '<span class="rmf-chip line-chip">' + rmfEsc(L.name) + ' 全駅<button type="button" class="rmf-chipx" data-clear="applied" aria-label="路線の選択を解除">×</button></span>';
+  if (RMF.appliedLines.size > 0 && RMF.sel.size === 0) {
+    RMF_LINES.forEach(function (L) {
+      if (!RMF.appliedLines.has(L.key)) return;
+      html += '<span class="rmf-chip line-chip">' + rmfEsc(L.name) + ' 全駅<button type="button" class="rmf-chipx" data-clearline="' + rmfEsc(L.key) + '" aria-label="路線の選択を解除">×</button></span>';
+    });
   }
   RMF.sel.forEach(function (st, key) {
     html += '<span class="rmf-chip">' + rmfEsc(st.name) + '駅（' + rmfEsc(st.lineName) + '）<button type="button" class="rmf-chipx" data-skey="' + rmfEsc(key) + '" aria-label="駅の選択を解除">×</button></span>';
   });
-  if (RMF.sel.size > 0 || RMF.appliedLineKey) {
+  if (RMF.sel.size > 0 || RMF.appliedLines.size > 0) {
     html += '<button type="button" class="rmf-clear" id="rmfClearBtn">駅の選択をクリア</button>';
   }
   box.innerHTML = html;
   box.querySelectorAll('.rmf-chipx').forEach(function (b) {
     b.addEventListener('click', function () {
-      if (b.dataset.clear === 'applied') { RMF.appliedLineKey = null; rmfAfterChange(true); }
+      if (b.dataset.clearline) { RMF.appliedLines.delete(b.dataset.clearline); rmfAfterChange(true); }
       else if (b.dataset.skey) { RMF.sel.delete(b.dataset.skey); rmfAfterChange(true); }
     });
   });
@@ -3159,7 +3269,7 @@ function rmfRenderNote() {
     return;
   }
   if (!rmfActive()) {
-    el.textContent = '路線を選ぶと全駅の徒歩圏内、駅をタップするとその駅だけに絞り込めます（住所・距離の条件と併用できます）。';
+    el.textContent = '路線を選ぶと全駅の徒歩圏内（複数路線の組み合わせも可）、駅をタップするとその駅だけに絞り込めます（住所・距離の条件と併用できます）。';
     return;
   }
   var t = '駅フィルター適用中： 徒歩' + RMF.walk + '分圏内の案件を表示しています。';
@@ -3180,12 +3290,15 @@ function rmfRenderPanel() {
     rmfRenderAccordion();
     rmfRenderStrip();
   }
+  rmfRenderPrefs();
+  rmfRenderQuick();
   rmfRenderWalk();
   rmfRenderChips();
   rmfRenderNote();
 }
 
 function rmfAfterChange(rerender) {
+  rmfRenderQuick();
   rmfRenderAccordion();
   rmfRenderStrip();
   rmfRenderChips();
@@ -3200,12 +3313,11 @@ function rmfPickLine(lineKey) {
   var op = RMF_LINE_BY_KEY[lineKey].op;
   RMF.openOps[op] = true;
   if (RMF.sel.size === 0) {
-    // 個別選択が空のときだけ全駅モードとして即適用（旧 appliedLine は置換）
-    if (RMF.appliedLineKey !== lineKey) {
-      RMF.appliedLineKey = lineKey;
-      rmfAfterChange(true);
-      return;
-    }
+    // 個別選択が空のときだけ全駅モードとして即適用（路線タップで ON/OFF・複数路線を組み合わせ可）
+    if (RMF.appliedLines.has(lineKey)) RMF.appliedLines.delete(lineKey);
+    else RMF.appliedLines.add(lineKey);
+    rmfAfterChange(true);
+    return;
   }
   rmfAfterChange(false);
 }
@@ -3226,7 +3338,7 @@ function rmfToggleStation(skey) {
     // 最後の1駅を外しても全駅モードへは自動で戻らない（駅条件は「無し」になる）
   } else {
     RMF.sel.set(skey, st);
-    if (RMF.appliedLineKey) RMF.appliedLineKey = null; // 全駅モードで最初の1駅 -> 駅指定へ移行
+    if (RMF.appliedLines.size) RMF.appliedLines.clear(); // 全駅モードで最初の1駅 -> 駅指定へ移行
     RMF.displayLineKey = st.lineKey;
   }
   rmfAfterChange(true);
@@ -3234,7 +3346,7 @@ function rmfToggleStation(skey) {
 
 function rmfClearStations() {
   RMF.sel.clear();
-  RMF.appliedLineKey = null;
+  RMF.appliedLines.clear();
   rmfAfterChange(true);
 }
 
@@ -3245,6 +3357,10 @@ function rmfSearchBind() {
   input.addEventListener('input', function () {
     var q = input.value.replace(/[\s　]+/g, '');
     if (!q) { sug.innerHTML = ''; sug.classList.remove('open'); return; }
+    var lineHits = [];
+    for (var li = 0; li < RMF_LINES.length && lineHits.length < 3; li++) {
+      if (RMF_LINES[li].name.indexOf(q) >= 0 || (RMF_LINES[li].name + RMF_LINES[li].op).indexOf(q) >= 0) lineHits.push(RMF_LINES[li]);
+    }
     var hits = [];
     for (var i = 0; i < RMF_LINES.length && hits.length < 12; i++) {
       var L = RMF_LINES[i];
@@ -3253,22 +3369,38 @@ function rmfSearchBind() {
         if (hits.length >= 12) break;
       }
     }
-    if (!hits.length) { sug.innerHTML = ''; sug.classList.remove('open'); return; }
-    sug.innerHTML = hits.map(function (st) {
+    if (!hits.length && !lineHits.length) { sug.innerHTML = ''; sug.classList.remove('open'); return; }
+    var sugHtml = lineHits.map(function (L) {
+      return '<button type="button" class="rmf-sitem" data-line="' + rmfEsc(L.key) + '">'
+        + '<span class="rmf-lcolor" style="background:' + L.color + '"></span>'
+        + rmfEsc(L.name) + ' <span class="rmf-sline">' + rmfEsc(L.op) + '・全' + L.stations.length + '駅</span></button>';
+    }).join('');
+    sugHtml += hits.map(function (st) {
       var key = rmfStationKey(st);
       return '<button type="button" class="rmf-sitem" data-skey="' + rmfEsc(key) + '">'
         + '<span class="rmf-lcolor" style="background:' + RMF_LINE_BY_KEY[st.lineKey].color + '"></span>'
         + rmfEsc(st.name) + '駅 <span class="rmf-sline">' + rmfEsc(st.lineName) + '</span></button>';
     }).join('');
+    sug.innerHTML = sugHtml;
     sug.classList.add('open');
     sug.querySelectorAll('.rmf-sitem').forEach(function (b) {
       b.addEventListener('click', function () {
-        var st = rmfFindStation(b.dataset.skey);
-        if (st && !RMF.sel.has(b.dataset.skey)) {
-          RMF.sel.set(b.dataset.skey, st);
-          if (RMF.appliedLineKey) RMF.appliedLineKey = null;
-          RMF.displayLineKey = st.lineKey;
-          rmfAfterChange(true);
+        if (b.dataset.line) {
+          var LL = RMF_LINE_BY_KEY[b.dataset.line];
+          if (LL) {
+            if (LL.prefs && LL.prefs.length) RMF.browsePref = LL.prefs[0];
+            if (RMF.sel.size === 0 && !RMF.appliedLines.has(LL.key)) rmfPickLine(LL.key);
+            else { RMF.displayLineKey = LL.key; RMF.openOps[LL.op] = true; rmfAfterChange(true); }
+            rmfRenderPrefs();
+          }
+        } else {
+          var st = rmfFindStation(b.dataset.skey);
+          if (st && !RMF.sel.has(b.dataset.skey)) {
+            RMF.sel.set(b.dataset.skey, st);
+            if (RMF.appliedLines.size) RMF.appliedLines.clear();
+            RMF.displayLineKey = st.lineKey;
+            rmfAfterChange(true);
+          }
         }
         input.value = '';
         sug.innerHTML = ''; sug.classList.remove('open');
@@ -3284,7 +3416,9 @@ window.RouteMapFilter = {
   getState: function () {
     return {
       displayLineKey: RMF.displayLineKey,
-      appliedLineKey: RMF.appliedLineKey,
+      appliedLineKey: RMF.appliedLines.size ? Array.from(RMF.appliedLines)[0] : null,
+      appliedLineKeys: Array.from(RMF.appliedLines),
+      browsePref: RMF.browsePref,
       stations: Array.from(RMF.sel.keys()),
       walkMin: RMF.walk,
       paused: RMF.paused,
@@ -3301,12 +3435,22 @@ function rmfStationTags() {
   var tags = [];
   if (!rmfActive()) return tags;
   var walk = RMF.walk;
-  if (RMF.appliedLineKey && RMF.sel.size === 0) {
-    var L = RMF_LINE_BY_KEY[RMF.appliedLineKey];
-    if (L) tags.push({
-      label: '🚃 ' + L.name + ' 徒歩' + walk + '分',
-      name: L.name + ' 徒歩' + walk + '分',
-      clear: function () { RMF.appliedLineKey = null; rmfAfterChange(true); }
+  if (RMF.appliedLines.size > 0 && RMF.sel.size === 0) {
+    var appliedLs = RMF_LINES.filter(function (L) { return RMF.appliedLines.has(L.key); });
+    if (appliedLs.length >= 4) {
+      tags.push({
+        label: '🚃 路線 ' + appliedLs.length + '路線 徒歩' + walk + '分',
+        name: '路線 ' + appliedLs.length + '路線 徒歩' + walk + '分',
+        clear: function () { RMF.appliedLines.clear(); rmfAfterChange(true); }
+      });
+      return tags;
+    }
+    appliedLs.forEach(function (L) {
+      tags.push({
+        label: '🚃 ' + L.name + ' 徒歩' + walk + '分',
+        name: L.name + ' 徒歩' + walk + '分',
+        clear: function () { RMF.appliedLines.delete(L.key); rmfAfterChange(true); }
+      });
     });
     return tags;
   }
@@ -3428,7 +3572,7 @@ function snapshotConditions() {
       addr: (rmfEl('distAddr') || {}).value || ''
     },
     rmf: {
-      sel: Array.from(RMF.sel.keys()), applied: RMF.appliedLineKey,
+      sel: Array.from(RMF.sel.keys()), applied: Array.from(RMF.appliedLines),
       walk: RMF.walk, disp: RMF.displayLineKey
     }
   };
@@ -3470,7 +3614,9 @@ function restoreConditions(s) {
   // 駅
   RMF.sel.clear();
   s.rmf.sel.forEach(function (k) { var st = rmfFindStation(k); if (st) RMF.sel.set(k, st); });
-  RMF.appliedLineKey = s.rmf.applied;
+  RMF.appliedLines.clear();
+  if (Array.isArray(s.rmf.applied)) s.rmf.applied.forEach(function (lk) { if (RMF_LINE_BY_KEY[lk]) RMF.appliedLines.add(lk); });
+  else if (s.rmf.applied && RMF_LINE_BY_KEY[s.rmf.applied]) RMF.appliedLines.add(s.rmf.applied);
   RMF.walk = s.rmf.walk;
   RMF.displayLineKey = s.rmf.disp;
   rmfAfterChange(false);
@@ -3488,7 +3634,7 @@ function clearAllConditions() {
   document.querySelectorAll('.shift-btn.active').forEach(function (b) { b.click(); });
   document.querySelectorAll('.ft-btn.active').forEach(function (b) { b.click(); });
   if (distMode) { var dx = rmfEl('distClear'); if (dx) dx.click(); }
-  if (RMF.sel.size || RMF.appliedLineKey) { RMF.sel.clear(); RMF.appliedLineKey = null; rmfAfterChange(false); }
+  if (RMF.sel.size || RMF.appliedLines.size) { RMF.sel.clear(); RMF.appliedLines.clear(); rmfAfterChange(false); }
   render();
   showToast('条件をすべてクリアしました', true);
 }
