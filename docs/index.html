@@ -1010,6 +1010,19 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
 .rmf-prefbtn { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); color: var(--fg2); font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer }
 .rmf-prefbtn.active { background: var(--navy); color: #fff; border-color: var(--navy) }
 .rmf-lcnt2 { color: var(--fg2); font-size: 12px; flex-shrink: 0 }
+.rmf-selbar { margin-top: 12px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); padding: 8px 10px }
+.rmf-selbar:empty { display: none }
+.rmf-sb-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.rmf-sb-label { font-size: 12px; font-weight: 700; color: var(--fg2) }
+.rmf-sb-total { font-size: 13px; font-weight: 700; color: var(--navy) }
+.rmf-sb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px }
+.rmf-sbchip { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--navy); border-radius: 999px; padding: 2px 4px 2px 8px; background: var(--surface) }
+.rmf-sbdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0 }
+.rmf-sbname { border: none; background: none; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--navy); padding: 4px 2px; cursor: pointer }
+.rmf-sb-hint { font-size: 11.5px; color: var(--fg2); margin-top: 6px; line-height: 1.5 }
+.rmf-selbar .rmf-sb-hint:first-child { margin-top: 0 }
+.rmf-addpill { margin-left: auto; flex-shrink: 0; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 4px 10px; border: 1.5px solid var(--border); color: var(--fg2); background: var(--surface) }
+.rmf-addpill.on { border-color: var(--navy); background: var(--navy); color: #fff }
 .rmf-walkseg { display: flex; gap: 6px; align-items: center; margin-top: 12px }
 .rmf-wlabel { font-size: 12px; font-weight: 700; color: var(--fg2); flex-shrink: 0 }
 .rmf-wbtn {
@@ -1244,6 +1257,7 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
   </div>
   <div class="rmf-quick" id="rmfQuick"></div>
   <div class="rmf-prefs" id="rmfPrefs" role="group" aria-label="都道府県から選ぶ"></div>
+  <div class="rmf-selbar" id="rmfSelBar"></div>
   <div class="rmf-acc" id="rmfAcc"></div>
   <div class="rmf-linename" id="rmfLineName"></div>
   <div class="rmf-strip" id="rmfStrip"></div>
@@ -3175,9 +3189,8 @@ function rmfRenderAccordion() {
           + '<span class="rmf-lcolor" style="background:' + L.color + '"></span>'
           + '<span class="rmf-lname">' + rmfEsc(L.name) + '</span>'
           + '<span class="rmf-lcnt2">' + rmfLineCaseCount(L.key) + '件</span>'
-          + ((n > 0 || isApplied) ? '<span class="rmf-dot" aria-label="選択中"></span>' : '')
           + (n > 0 ? '<span class="rmf-lcnt">（' + n + '）</span>' : '')
-          + (isApplied ? '<span class="rmf-lcnt">全駅</span>' : '')
+          + (RMF.sel.size === 0 ? (isApplied ? '<span class="rmf-addpill on">✓ 選択中</span>' : '<span class="rmf-addpill">＋ 追加</span>') : '')
           + '</button>';
       });
       html += '</div>';
@@ -3277,6 +3290,74 @@ function rmfRenderNote() {
   el.textContent = t;
 }
 
+function rmfUnionCount() {
+  var targets = rmfTargets();
+  if (targets.length === 0) return 0;
+  var idPart;
+  if (RMF.sel.size > 0) idPart = 'S:' + Array.from(RMF.sel.keys()).sort().join(',');
+  else idPart = 'L:' + Array.from(RMF.appliedLines).sort().join(',');
+  var cacheKey = 'U|' + RMF.walk + '|' + idPart;
+  if (RMF.countsCache.has(cacheKey)) return RMF.countsCache.get(cacheKey);
+  if (!RMF_RESOLVED_ALL) {
+    RMF_RESOLVED_ALL = [];
+    for (var i = 0; i < D_KANSAI.length; i++) RMF_RESOLVED_ALL.push(stnResolve(D_KANSAI[i]));
+  }
+  var limitKm = RMF.walk * 80 / 1000;
+  var total = 0;
+  for (var j = 0; j < RMF_RESOLVED_ALL.length; j++) {
+    var c = RMF_RESOLVED_ALL[j];
+    if (!c) continue;
+    for (var s = 0; s < targets.length; s++) {
+      var t = targets[s];
+      if (Math.abs(c[0] - t.lat) * 110.0 > limitKm) continue;
+      if (Math.abs(c[1] - t.lon) * 90.0 > limitKm) continue;
+      if (haversine(c[0], c[1], t.lat, t.lon) <= limitKm) { total++; break; }
+    }
+  }
+  RMF.countsCache.set(cacheKey, total);
+  return total;
+}
+
+function rmfShowLine(lineKey) {
+  if (!RMF_LINE_BY_KEY[lineKey]) return;
+  RMF.displayLineKey = lineKey;
+  RMF.openOps[RMF_LINE_BY_KEY[lineKey].op] = true;
+  rmfRenderAccordion();
+  rmfRenderStrip();
+  var sn = rmfEl('rmfLineName');
+  if (sn) sn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function rmfRenderSelBar() {
+  var box = rmfEl('rmfSelBar');
+  if (!box) return;
+  if (typeof currentRegion !== 'undefined' && currentRegion === 'kanto') { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = '';
+  var html = '';
+  if (RMF.sel.size > 0) {
+    html += '<div class="rmf-sb-head"><span class="rmf-sb-label">選択中の駅</span><span class="rmf-sb-total">' + RMF.sel.size + '駅 ・ 駅条件で ' + rmfUnionCount() + ' 件</span></div>';
+    html += '<div class="rmf-sb-hint">駅は下のチップから外せます。路線の全駅で選び直すときは、駅の選択をクリアしてください。</div>';
+  } else if (RMF.appliedLines.size > 0) {
+    html += '<div class="rmf-sb-head"><span class="rmf-sb-label">選択中の路線（全駅）</span><span class="rmf-sb-total">' + RMF.appliedLines.size + '路線 ・ 駅条件で ' + rmfUnionCount() + ' 件</span></div>';
+    html += '<div class="rmf-sb-chips">';
+    RMF_LINES.forEach(function (L) {
+      if (!RMF.appliedLines.has(L.key)) return;
+      html += '<span class="rmf-sbchip"><span class="rmf-sbdot" style="background:' + L.color + '"></span><button type="button" class="rmf-sbname" data-showline="' + rmfEsc(L.key) + '">' + rmfEsc(L.name) + '</button><button type="button" class="rmf-chipx" data-clearline="' + rmfEsc(L.key) + '" aria-label="路線の選択を解除">×</button></span>';
+    });
+    html += '</div>';
+    html += '<div class="rmf-sb-hint">路線名をタップすると、その路線の駅一覧を表示します。路線の行をタップすると、さらにもう1路線追加できます。</div>';
+  } else {
+    html += '<div class="rmf-sb-hint">路線は複数選べます。路線の行の「＋ 追加」をタップで追加、もう一度タップで解除します。</div>';
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('[data-showline]').forEach(function (b) {
+    b.addEventListener('click', function () { rmfShowLine(b.dataset.showline); });
+  });
+  box.querySelectorAll('[data-clearline]').forEach(function (b) {
+    b.addEventListener('click', function () { RMF.appliedLines.delete(b.dataset.clearline); rmfAfterChange(true); });
+  });
+}
+
 function rmfRenderPanel() {
   var root = rmfEl('rmfRoot');
   if (!root) return;
@@ -3291,6 +3372,7 @@ function rmfRenderPanel() {
     rmfRenderStrip();
   }
   rmfRenderPrefs();
+  rmfRenderSelBar();
   rmfRenderQuick();
   rmfRenderWalk();
   rmfRenderChips();
@@ -3300,6 +3382,7 @@ function rmfRenderPanel() {
 function rmfAfterChange(rerender) {
   rmfRenderQuick();
   rmfRenderAccordion();
+  rmfRenderSelBar();
   rmfRenderStrip();
   rmfRenderChips();
   rmfRenderNote();
