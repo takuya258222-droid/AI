@@ -9,6 +9,7 @@ import json
 import re
 import os
 import sys
+from collections import Counter
 from datetime import datetime
 
 TARGET_PREFS = {"京都府", "大阪府", "滋賀県", "奈良県", "兵庫県"}
@@ -191,8 +192,10 @@ def parse_date(s):
     if not s:
         return ""
     s = str(s).strip()
+    s = re.sub(r'\.\d+$', '', s)
+    s = re.sub(r'\.\d+([+-]\d{2}:\d{2}|Z)$', r'\1', s)
     for fmt in ("%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S+09:00", "%Y/%m/%d",
-                "%Y-%m-%d %H:%M:%S", "%Y年%m月%d日"):
+                "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y年%m月%d日"):
         try:
             dt = datetime.strptime(s, fmt)
             return dt.strftime("%Y/%m/%d")
@@ -432,6 +435,9 @@ def main():
                 "cat": rec["cat"],
             }
 
+    # === BO count for rare detection ===
+    bo_count = Counter((rec["name"], rec["cat"]) for rec in all_records)
+
     # === Build final list ===
     final = []
     stats = {"valid": 0, "supplemented": 0, "pref_only": 0}
@@ -455,7 +461,11 @@ def main():
         elif addr:
             stats["pref_only"] += 1
 
-        final.append({
+        key = (grp["name"], grp["cat"])
+        cnt = bo_count.get(key, 1)
+        is_rare = (grp["cat"] == "介護" and cnt < 4) or (grp["cat"] == "看護" and cnt < 5)
+
+        rec_out = {
             "n": grp["name"],
             "a": addr,
             "p": grp["pref"] or extract_pref(addr),
@@ -466,13 +476,17 @@ def main():
             "s": sorted(grp["shifts"]),
             "cat": grp["cat"],
             "ft": classify_facility(grp["name"], combined),
-        })
+        }
+        if is_rare:
+            rec_out["rare"] = 1
+        final.append(rec_out)
 
     final.sort(key=lambda x: x["d"], reverse=True)
 
     kaigo = sum(1 for r in final if r["cat"] == "介護")
     kango = sum(1 for r in final if r["cat"] == "看護")
-    print(f"\nTotal: {len(final)} (介護: {kaigo}, 看護: {kango})")
+    rare = sum(1 for r in final if r.get("rare"))
+    print(f"\nTotal: {len(final)} (介護: {kaigo}, 看護: {kango}, レア: {rare})")
     print(f"Address: valid={stats['valid']}, supplemented={stats['supplemented']}, pref_only={stats['pref_only']}")
 
     with open(output_path, "w", encoding="utf-8") as f:
