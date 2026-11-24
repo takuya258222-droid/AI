@@ -1,1 +1,1 @@
-pages build trigger 2026-11-21 21:25
+rebuild trigger 2026-11-24 18:05 JST - redeploy 9d78d28 (Kansai 6615)
