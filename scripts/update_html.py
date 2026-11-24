@@ -10,8 +10,17 @@ matched by facility identity (normalized name + address); coordinates are
 appended only when the old data has exactly one coordinate for the key.
 The D_KANSAI block is located with a bracket-aware scan instead of a
 non-greedy regex so a "];" inside a string value cannot truncate it.
+
+2026-11-24 (2): shrink guard. If the replacement D_KANSAI would have
+more than 10% fewer records than the HTML currently published, this
+script exits 1 BEFORE writing anything: the Actions run fails (red),
+no commit is made, and the live page keeps serving the old data. The
+guard applies to scheduled and manual (workflow_dispatch) runs alike.
+Override only for a verified, legitimate shrink by setting the
+environment variable ALLOW_KANSAI_SHRINK=1 for the run.
 """
 import json
+import os
 import re
 import sys
 import time
@@ -115,6 +124,24 @@ def main():
         old_data = json.loads(html[span[0] : span[1]])
     except json.JSONDecodeError:
         old_data = []
+
+    # --- Shrink guard (2026-11-24) -----------------------------------
+    # New D_KANSAI more than 10% smaller than the published one ->
+    # abort WITHOUT writing: the workflow run fails, nothing is
+    # committed, and the live page keeps the old data. (On 2026-11-22
+    # a small source silently overwrote 6,854 records with 2,849.)
+    # Applies to manual workflow_dispatch runs too. Override for a
+    # verified legitimate shrink: env ALLOW_KANSAI_SHRINK=1.
+    old_count = len(old_data)
+    new_count = len(data)
+    if old_count and new_count < old_count * 0.9 and os.environ.get("ALLOW_KANSAI_SHRINK") != "1":
+        print(
+            f"ERROR: D_KANSAI shrink guard: {old_count} -> {new_count} records "
+            f"({(old_count - new_count) / old_count:.1%} decrease, over the 10% limit). "
+            "Aborting without changes. Set ALLOW_KANSAI_SHRINK=1 to override."
+        )
+        sys.exit(1)
+
     if old_data:
         n_coord, n_tel = carry_over(data, old_data)
         print(f"Carried over coordinates for {n_coord} records, tel for {n_tel}")
