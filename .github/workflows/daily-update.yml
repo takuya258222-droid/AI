@@ -1,9 +1,14 @@
 name: Daily Data Update
 
 on:
-  schedule:
-    - cron: "30 22 * * *"  # 毎日07:30 JST (22:30 UTC)
-  workflow_dispatch:  # 手動実行も可能
+  # 2026-11-24: schedule PAUSED at the user's order, pending source
+  # investigation. The Sheets source yields far fewer Kansai records
+  # (2,849) than the app's original dataset (6,854), and on 2026-11-22
+  # the daily update silently overwrote the page with the small set.
+  # Do NOT re-enable this schedule until that discrepancy is resolved.
+  # schedule:
+  #   - cron: "30 22 * * *"  # 毎日07:30 JST (22:30 UTC)
+  workflow_dispatch:  # 手動実行のみ (update_html.py の件数ガードが効く)
 
 permissions:
   contents: write
@@ -36,6 +41,10 @@ jobs:
         run: python scripts/build_app_data.py /tmp/sheets /tmp/app_data.json
 
       - name: Update HTML
+        # 件数ガード: 差し替えで関西件数が10%超減る場合、update_html.py が
+        # exit 1 してこの実行は失敗 (赤) になり、コミットされず、
+        # 公開中のページは旧データのまま残る。手動実行でも同じ。
+        # 正当な減少で外す場合のみ、この step に env: ALLOW_KANSAI_SHRINK: "1" を追加。
         run: python scripts/update_html.py /tmp/app_data.json docs/index.html
 
       - name: Commit and push
