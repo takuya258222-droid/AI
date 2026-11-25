@@ -1,0 +1,27 @@
+name: 案件データ減少の自動差し戻し
+
+# 日次更新などで docs/index.html の関西案件が基準の90%未満に減った push を検知し、
+# 直近の正常な版へ自動で戻す (2026-11-23・11-25朝の約2,850件上書き事故の再発防止)。
+# 戻した場合この実行は失敗 (赤) になり、コミット履歴にも「公開ガード: ... 戻しました」が残る。
+on:
+  push:
+    branches: ["claude/github-check-tezbwr"]
+    paths: ["docs/index.html"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: guard-restore
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/github-check-tezbwr
+          fetch-depth: 40
+      - name: 件数・座標を確認し、減っていたら直近の正常な版に戻す
+        run: python3 scripts/guard_restore.py
