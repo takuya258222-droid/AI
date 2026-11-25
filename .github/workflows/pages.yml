@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: ["claude/jolly-edison-bzgzfi", "claude/github-check-tezbwr"]
-    paths: ["docs/**"]
+    paths: ["docs/**", ".github/kansai_guard.json"]
   workflow_dispatch:
 
 permissions:
@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: 公開ガード（関西案件の件数・座標が大きく減っていたら公開しない）
+        run: python3 scripts/pages_guard.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
