@@ -61,8 +61,9 @@ def main():
         if nn in base_by_name:
             idx = base_by_name[nn]
             base_rec = base[idx]
-            supp_date = supp_rec.get("d", "") or today
-            base_rec["d"] = max(supp_date, base_rec.get("d", ""), today)
+            supp_date = supp_rec.get("d", "")
+            if supp_date:
+                base_rec["d"] = supp_date
             if supp_rec.get("o"):
                 base_rec["o"] = supp_rec["o"]
             if supp_rec.get("s"):
