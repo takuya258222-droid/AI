@@ -1397,6 +1397,7 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
     <div class="import-status" id="importStatus"></div>
     <div class="import-actions">
       <button class="import-close" id="importClose" type="button">閉じる</button>
+      <button class="import-close" id="importClearBtn" type="button" style="color:#e53935">クリア</button>
       <button class="import-apply" id="importApply" type="button">取り込む</button>
     </div>
   </div>
@@ -2537,6 +2538,7 @@ function selectRegion(region){
   } else {
     D=D_KANTO;prefs=KANTO_PREFS;prefLabels=KANTO_PREF_LABELS;
   }
+  if(window._restoreCSVImports){const n=window._restoreCSVImports(D,region);if(n)console.log('CSV復元:'+n+'件');}
   try{localStorage.setItem('anken_region',region);}catch(e){}
   document.getElementById('regionOverlay').classList.add('hidden');
   document.getElementById('regionSwitch').textContent=(region==='kansai'?'関西':'関東')+' ▾';
@@ -2821,10 +2823,10 @@ applyBtn.addEventListener('click',()=>{
     const existing=new Set(D_KANSAI.map(e=>e.n+'||'+e.a+'||'+e.cat));
     for(const e of kansaiNew){
       const dk=e.n+'||'+e.a+'||'+e.cat;
-      if(!existing.has(dk)){delete e._region;D_KANSAI.push(e);existing.add(dk);addedKa++;}
+      if(!existing.has(dk)){delete e._region;e._csv=1;D_KANSAI.push(e);existing.add(dk);addedKa++;}
       else{
         const ex=D_KANSAI.find(x=>x.n+'||'+x.a+'||'+x.cat===dk);
-        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;}
+        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;}
       }
     }
   }
@@ -2832,10 +2834,10 @@ applyBtn.addEventListener('click',()=>{
     const existing=new Set(D_KANTO.map(e=>e.n+'||'+e.a+'||'+e.cat));
     for(const e of kantoNew){
       const dk=e.n+'||'+e.a+'||'+e.cat;
-      if(!existing.has(dk)){delete e._region;D_KANTO.push(e);existing.add(dk);addedKt++;}
+      if(!existing.has(dk)){delete e._region;e._csv=1;D_KANTO.push(e);existing.add(dk);addedKt++;}
       else{
         const ex=D_KANTO.find(x=>x.n+'||'+x.a+'||'+x.cat===dk);
-        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;}
+        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;}
       }
     }
   }
@@ -2849,8 +2851,42 @@ applyBtn.addEventListener('click',()=>{
   applyBtn.classList.remove('show');
   if(currentRegion==='kansai')D=D_KANSAI;else D=D_KANTO;
   document.getElementById('total').textContent=' '+D.length+'件';
+  _saveCSVImports();
   init();
   setTimeout(()=>modal.classList.add('hidden'),1200);
+});
+
+function _saveCSVImports(){
+  try{
+    const ka=D_KANSAI.filter(r=>r._csv);
+    const kt=(typeof D_KANTO!=='undefined'&&D_KANTO)?D_KANTO.filter(r=>r._csv):[];
+    localStorage.setItem('csv_imports',JSON.stringify({ka:ka,kt:kt,ts:Date.now()}));
+  }catch(e){}
+}
+window._restoreCSVImports=function(target,region){
+  try{
+    const raw=localStorage.getItem('csv_imports');
+    if(!raw)return 0;
+    const saved=JSON.parse(raw);
+    const items=region==='kansai'?saved.ka||[]:saved.kt||[];
+    if(!items.length)return 0;
+    const existing=new Set(target.map(e=>e.n+'||'+e.a+'||'+e.cat));
+    let count=0;
+    for(const e of items){
+      const dk=e.n+'||'+e.a+'||'+e.cat;
+      if(!existing.has(dk)){target.push(e);existing.add(dk);count++;}
+      else{
+        const ex=target.find(x=>x.n+'||'+x.a+'||'+x.cat===dk);
+        if(ex){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;count++;}
+      }
+    }
+    return count;
+  }catch(e){return 0;}
+};
+document.getElementById('importClearBtn').addEventListener('click',()=>{
+  if(!confirm('CSV取り込みデータをクリアしますか？'))return;
+  try{localStorage.removeItem('csv_imports');}catch(e){}
+  location.reload();
 });
 })();
 
