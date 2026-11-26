@@ -3,8 +3,10 @@
 
 Cumulative merge:
 - All base records are kept (never deleted).
-- If a facility name matches (NFKC-normalized, stripped): update date/order/
-  shifts/time/contact/facility_type from supplement IF supplement date is newer.
+- If a facility name matches (NFKC-normalized, stripped): always update
+  date/order/shifts/time/contact/facility_type from supplement. If supplement
+  date is empty, use today's date (the facility is in the active spreadsheet,
+  so it's a current listing).
 - If a facility is in supplement but not in base: add it.
 - lat/lon/tel from base are always preserved.
 
@@ -13,6 +15,7 @@ Usage: python merge_supplement.py <base.json> <supplement.json> <output.json>
 import json
 import sys
 import unicodedata
+from datetime import datetime
 
 
 def norm_name(n):
@@ -51,28 +54,29 @@ def main():
     updated = 0
     added = 0
 
+    today = datetime.now().strftime("%Y/%m/%d")
+
     # Update existing base records
     for nn, supp_rec in supp_by_name.items():
         if nn in base_by_name:
             idx = base_by_name[nn]
             base_rec = base[idx]
-            supp_date = supp_rec.get("d", "")
-            base_date = base_rec.get("d", "")
-
-            if supp_date and supp_date >= base_date:
-                base_rec["d"] = supp_date
-                if supp_rec.get("o"):
-                    base_rec["o"] = supp_rec["o"]
-                if supp_rec.get("s"):
-                    base_rec["s"] = supp_rec["s"]
-                if supp_rec.get("t"):
-                    base_rec["t"] = supp_rec["t"]
-                if supp_rec.get("c"):
-                    base_rec["c"] = supp_rec["c"]
-                if supp_rec.get("ft") and supp_rec["ft"] != "その他":
-                    base_rec["ft"] = supp_rec["ft"]
-                updated += 1
+            supp_date = supp_rec.get("d", "") or today
+            base_rec["d"] = max(supp_date, base_rec.get("d", ""), today)
+            if supp_rec.get("o"):
+                base_rec["o"] = supp_rec["o"]
+            if supp_rec.get("s"):
+                base_rec["s"] = supp_rec["s"]
+            if supp_rec.get("t"):
+                base_rec["t"] = supp_rec["t"]
+            if supp_rec.get("c"):
+                base_rec["c"] = supp_rec["c"]
+            if supp_rec.get("ft") and supp_rec["ft"] != "その他":
+                base_rec["ft"] = supp_rec["ft"]
+            updated += 1
         else:
+            if not supp_rec.get("d"):
+                supp_rec["d"] = today
             added += 1
             base.append(supp_rec)
 
