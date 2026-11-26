@@ -237,6 +237,7 @@ def main():
         data = json.load(f)
     rows = data.get("values", [])
     headers = rows[0] if rows else []
+    headers = [("取得日" if h.strip() == "藤生" else h) for h in headers]
     for row in rows[1:]:
         rd = {}
         for i, h in enumerate(headers):
