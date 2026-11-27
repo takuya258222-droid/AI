@@ -556,6 +556,11 @@ body::before {
 .share-btn.line { background: #06C755; color: #fff; box-shadow: 0 2px 6px rgba(6,199,85,0.25) }
 .share-btn.sms { background: linear-gradient(135deg, #34d399, #10b981); color: #fff; box-shadow: 0 2px 6px rgba(16,185,129,0.25) }
 .share-btn.copy { background: var(--border); color: var(--fg) }
+.share-btn.addr-copy { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .share-btn.addr-copy { background: #1e3a5f; color: #60a5fa; border-color: #1e40af }
+}
+:root[data-theme="dark"] .share-btn.addr-copy { background: #1e3a5f; color: #60a5fa; border-color: #1e40af }
 .share-btn.fresh { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .share-btn.fresh { background: #052e16; color: #4ade80; border-color: #166534 }
@@ -2153,6 +2158,7 @@ function showMore(){
         '<div class="share-row">'+
           '<button class="share-btn line" data-idx="'+i+'">LINE</button>'+
           '<button class="share-btn sms" data-idx="'+i+'">SMS</button>'+
+          '<button class="share-btn addr-copy" data-idx="'+i+'">施設+住所</button>'+
           '<button class="share-btn copy" data-idx="'+i+'">コピー</button>'+
           '<button class="share-btn fav'+(favs.has(r.n+'||'+r.a)?' is-fav':'')+'" data-idx="'+i+'">'+(favs.has(r.n+'||'+r.a)?'★':'☆')+'</button>'+
           '<button class="share-btn fresh" data-idx="'+i+'">新着化</button>'+
@@ -2193,6 +2199,13 @@ document.addEventListener('click',function(e){
     window.open('https://line.me/R/share?text='+encodeURIComponent(text),'_blank');
   }else if(btn.classList.contains('sms')){
     window.location.href='sms:&body='+encodeURIComponent(text);
+  }else if(btn.classList.contains('addr-copy')){
+    var addrText=r.n+'\n'+r.a;
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(addrText).then(()=>{
+        btn.textContent='✓ コピー済';setTimeout(()=>{btn.textContent='施設+住所'},1500);
+      }).catch(()=>{fallbackCopy(addrText,btn);setTimeout(()=>{btn.textContent='施設+住所'},1500)});
+    }else{fallbackCopy(addrText,btn);setTimeout(()=>{btn.textContent='施設+住所'},1500)}
   }else if(btn.classList.contains('copy')){
     if(navigator.clipboard&&navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).then(()=>{
