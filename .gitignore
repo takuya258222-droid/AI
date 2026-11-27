@@ -3,3 +3,4 @@ node_modules/
 screenshots/
 images/
 scripts/__pycache__/
+test-results/
