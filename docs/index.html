@@ -1146,6 +1146,33 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 .leaflet-map-wrap { position: relative; width: 100%; height: 550px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border) }
 #leafletMap { width: 100%; height: 100% }
+.lf-toolbar { margin-bottom: 8px; position: relative; z-index: 500 }
+.lf-addr-row { display: flex; gap: 6px; align-items: center }
+.lf-addr-input { flex: 1; min-height: 42px; padding: 0 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; background: var(--surface,#fff); color: var(--fg); outline: none }
+.lf-addr-input:focus { border-color: #2563eb }
+.lf-addr-btn { min-height: 42px; padding: 0 14px; background: #2563eb; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap }
+.lf-addr-btn:active { opacity: .8 }
+.lf-gps-btn { min-width: 42px; min-height: 42px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface,#fff); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 }
+.lf-gps-btn:active { background: #eff6ff }
+.lf-radius-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap }
+.lf-radius-label { font-size: 12px; font-weight: 700; color: var(--fg2); white-space: nowrap }
+.lf-radius-btn { min-height: 34px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface,#fff); color: var(--fg); font-size: 12px; font-weight: 600; cursor: pointer }
+.lf-radius-btn.active { background: #2563eb; color: #fff; border-color: #2563eb }
+.lf-clear-btn { min-height: 34px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #fef2f2; color: #dc2626; font-size: 12px; font-weight: 600; cursor: pointer; margin-left: auto }
+.lf-dist-tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; margin-bottom: 6px }
+.lf-dist-near { background: #dcfce7; color: #16a34a }
+.lf-dist-mid { background: #fef9c3; color: #ca8a04 }
+.lf-dist-far { background: #fee2e2; color: #dc2626 }
+.lf-fullscreen-btn { position: absolute; top: 10px; right: 10px; z-index: 1000; width: 38px; height: 38px; border: none; border-radius: 8px; background: rgba(255,255,255,0.95); box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center }
+.lf-fullscreen-btn:active { background: #e5e7eb }
+.lf-home-marker { background: none; border: none }
+#leafletCard.lf-fs { position: fixed; inset: 0; z-index: 9999; margin: 0; border-radius: 0; padding: 0; display: flex; flex-direction: column; background: var(--bg,#f5f5f5) }
+#leafletCard.lf-fs .fx-map-head { display: none }
+#leafletCard.lf-fs #leafletBody { display: flex!important; flex-direction: column; flex: 1; padding: 8px; padding-top: env(safe-area-inset-top, 8px) }
+#leafletCard.lf-fs .leaflet-map-wrap { flex: 1; height: auto; border-radius: 10px }
+#leafletCard.lf-fs .fx-note { display: none }
+#leafletCard.lf-fs .lf-fs-close { display: flex }
+.lf-fs-close { display: none; position: absolute; top: 10px; left: 10px; z-index: 1001; width: 38px; height: 38px; border: none; border-radius: 8px; background: rgba(255,255,255,0.95); box-shadow: 0 2px 6px rgba(0,0,0,0.2); font-size: 18px; cursor: pointer; align-items: center; justify-content: center }
 .lf-popup-name { font-weight: 700; font-size: 15px; margin-bottom: 6px; line-height: 1.3 }
 .lf-popup-addr { font-size: 13px; color: #555; margin-bottom: 6px }
 .lf-popup-meta { font-size: 13px; margin-bottom: 8px }
@@ -1156,6 +1183,7 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
 .lf-popup-btn { display: inline-block; margin-top: 6px; padding: 8px 14px; background: #2563eb; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; border: none }
 .lf-popup-btn:active { opacity: 0.8 }
 .lf-popup-copy { display: inline-block; margin-top: 6px; margin-left: 6px; padding: 8px 14px; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer }
+.leaflet-control-zoom a { width: 36px!important; height: 36px!important; line-height: 36px!important; font-size: 20px!important }
 </style>
 </head>
 <body>
@@ -1325,8 +1353,28 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
     <span class="fx-map-chev" id="leafletChev">▸</span>
   </button>
   <div id="leafletBody" hidden>
-    <div class="leaflet-map-wrap"><div id="leafletMap"></div></div>
-    <div class="fx-note" style="margin-top:6px">ピンをタップすると施設情報が表示されます。フィルター条件に連動します。</div>
+    <div class="lf-toolbar">
+      <div class="lf-addr-row">
+        <input type="text" id="lfAddrInput" placeholder="求職者の住所を入力（例：大阪市北区）" class="lf-addr-input">
+        <button id="lfAddrSearch" class="lf-addr-btn">検索</button>
+        <button id="lfGps" class="lf-gps-btn" title="現在地を使う">📍</button>
+      </div>
+      <div class="lf-radius-row" id="lfRadiusRow" hidden>
+        <span class="lf-radius-label">距離圏</span>
+        <button class="lf-radius-btn" data-km="1">1km</button>
+        <button class="lf-radius-btn active" data-km="3">3km</button>
+        <button class="lf-radius-btn" data-km="5">5km</button>
+        <button class="lf-radius-btn" data-km="10">10km</button>
+        <button class="lf-radius-btn" data-km="0">なし</button>
+        <button id="lfClearAddr" class="lf-clear-btn">クリア</button>
+      </div>
+    </div>
+    <div class="leaflet-map-wrap">
+      <div id="leafletMap"></div>
+      <button id="lfFullscreen" class="lf-fullscreen-btn" title="全画面表示">⛶</button>
+      <button class="lf-fs-close" id="lfFsClose" title="全画面終了">✕</button>
+    </div>
+    <div class="fx-note" style="margin-top:6px">住所を入力すると求職者の位置がピン表示され、距離圏と近い施設が分かります。全画面ボタンで大きく表示できます。</div>
   </div>
 </section>
 <section class="fcard" id="fxMapCard" aria-label="市区町村マップ">
@@ -4913,10 +4961,12 @@ ankenUiSync = function () {
 <script>
 (function(){
   var lfMap=null, lfMarkers=null, lfOpen=false;
+  var homeLatLng=null, homeMarker=null, radiusCircle=null, radiusKm=3;
   var toggle=document.getElementById('leafletToggle');
   var body=document.getElementById('leafletBody');
   var chev=document.getElementById('leafletChev');
   var subEl=document.getElementById('leafletHeadSub');
+  var card=document.getElementById('leafletCard');
 
   toggle.addEventListener('click',function(){
     lfOpen=!lfOpen;
@@ -4930,13 +4980,13 @@ ankenUiSync = function () {
   });
 
   function initMap(){
-    lfMap=L.map('leafletMap',{zoomControl:true,attributionControl:false}).setView([34.68,135.5],10);
+    lfMap=L.map('leafletMap',{zoomControl:true,attributionControl:false,tap:true,touchZoom:true,scrollWheelZoom:true}).setView([34.68,135.5],10);
     L.tileLayer('https://tile.openstreetmap.jp/styles/osm-bright-ja/{z}/{x}/{y}.png',{
       maxZoom:19,
       attribution:'<a href="https://openstreetmap.jp/">OSM Japan</a>'
     }).addTo(lfMap);
     L.control.attribution({prefix:false,position:'bottomright'}).addTo(lfMap);
-    lfMarkers=L.markerClusterGroup({maxClusterRadius:40,spiderfyOnMaxZoom:true,showCoverageOnHover:false,
+    lfMarkers=L.markerClusterGroup({maxClusterRadius:40,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true,
       iconCreateFunction:function(cluster){
         var cnt=cluster.getChildCount();
         var sz=cnt<10?30:cnt<50?36:cnt<100?42:48;
@@ -4945,6 +4995,7 @@ ankenUiSync = function () {
     });
     lfMap.addLayer(lfMarkers);
     updateMarkers();
+    setupControls();
   }
 
   function catColor(c){return c==='看護'?'#ef4444':c==='介護'?'#0ea5e9':'#8b5cf6';}
@@ -4956,6 +5007,19 @@ ankenUiSync = function () {
       html:'<div style="width:18px;height:18px;border-radius:50%;background:'+col+';border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>',
       className:'',iconSize:[18,18],iconAnchor:[9,9],popupAnchor:[0,-12]
     });
+  }
+
+  function haversine(lat1,lon1,lat2,lon2){
+    var R=6371,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
+    var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+
+  function distTag(km){
+    if(km<=1) return '<div class="lf-dist-tag lf-dist-near">'+km.toFixed(1)+'km（徒歩'+Math.round(km*12)+'分）</div>';
+    if(km<=3) return '<div class="lf-dist-tag lf-dist-near">'+km.toFixed(1)+'km（自転車'+Math.round(km*4)+'分）</div>';
+    if(km<=10) return '<div class="lf-dist-tag lf-dist-mid">'+km.toFixed(1)+'km（車'+Math.round(km*2)+'分）</div>';
+    return '<div class="lf-dist-tag lf-dist-far">'+km.toFixed(1)+'km</div>';
   }
 
   window._lfUpdateMarkers=function(){ if(lfOpen&&lfMap) updateMarkers(); };
@@ -4975,34 +5039,136 @@ ankenUiSync = function () {
       count++;
     }
     subEl.textContent=count+'件表示中';
+    if(homeLatLng){
+      subEl.textContent+=' / 求職者ピン有';
+    }
     var hasPref=(window._lfPref&&window._lfPref!=='all');
     var hasCity=(window._lfCity&&window._lfCity!=='all');
-    if(count>0&&(hasPref||hasCity)){
+    if(homeLatLng){
+      // don't auto-move when home pin is set
+    }else if(count>0&&(hasPref||hasCity)){
       try{
         var lats=[],lngs=[];
         lfMarkers.eachLayer(function(m){var ll=m.getLatLng();lats.push(ll.lat);lngs.push(ll.lng);});
         lats.sort(function(a,b){return a-b});lngs.sort(function(a,b){return a-b});
         var mid=Math.floor(lats.length/2);
-        var cLat=lats[mid],cLng=lngs[mid];
-        var zm=hasCity?13:11;
-        lfMap.setView([cLat,cLng],zm,{animate:true});
+        lfMap.setView([lats[mid],lngs[mid]],hasCity?13:11,{animate:true});
       }catch(e){}
     }else if(count>0&&!hasPref){
       lfMap.setView([34.68,135.5],10,{animate:false});
     }
   }
 
+  function setHomeLocation(lat,lng,label){
+    homeLatLng=[lat,lng];
+    if(homeMarker) lfMap.removeLayer(homeMarker);
+    var hIcon=L.divIcon({
+      html:'<div style="position:relative"><div style="width:28px;height:28px;border-radius:50%;background:#dc2626;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center"><span style="color:#fff;font-size:14px;font-weight:700">人</span></div><div style="position:absolute;top:28px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(0,0,0,0.75);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px">求職者</div></div>',
+      className:'lf-home-marker',iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-18]
+    });
+    homeMarker=L.marker([lat,lng],{icon:hIcon,zIndexOffset:1000}).addTo(lfMap);
+    homeMarker.bindPopup('<b>求職者の位置</b><br>'+(label||lat.toFixed(4)+','+lng.toFixed(4)));
+    document.getElementById('lfRadiusRow').hidden=false;
+    drawRadius();
+    lfMap.setView([lat,lng],14,{animate:true});
+    updateMarkers();
+  }
+
+  function clearHome(){
+    homeLatLng=null;
+    if(homeMarker){lfMap.removeLayer(homeMarker);homeMarker=null;}
+    if(radiusCircle){lfMap.removeLayer(radiusCircle);radiusCircle=null;}
+    document.getElementById('lfRadiusRow').hidden=true;
+    document.getElementById('lfAddrInput').value='';
+    updateMarkers();
+    lfMap.setView([34.68,135.5],10,{animate:true});
+  }
+
+  function drawRadius(){
+    if(radiusCircle){lfMap.removeLayer(radiusCircle);radiusCircle=null;}
+    if(!homeLatLng||radiusKm<=0)return;
+    radiusCircle=L.circle(homeLatLng,{radius:radiusKm*1000,color:'#2563eb',fillColor:'#2563eb',fillOpacity:0.08,weight:2,dashArray:'6 4'}).addTo(lfMap);
+  }
+
+  function geocode(addr,cb){
+    var url='https://nominatim.openstreetmap.org/search?format=json&countrycodes=jp&limit=1&q='+encodeURIComponent(addr);
+    fetch(url).then(function(r){return r.json()}).then(function(d){
+      if(d&&d.length>0) cb(parseFloat(d[0].lat),parseFloat(d[0].lon),d[0].display_name);
+      else cb(null);
+    }).catch(function(){cb(null)});
+  }
+
+  function setupControls(){
+    var inp=document.getElementById('lfAddrInput');
+    var btn=document.getElementById('lfAddrSearch');
+    btn.addEventListener('click',function(){
+      var v=inp.value.trim();
+      if(!v)return;
+      btn.textContent='検索中...';btn.disabled=true;
+      geocode(v,function(lat,lng,name){
+        btn.textContent='検索';btn.disabled=false;
+        if(lat!==null) setHomeLocation(lat,lng,v);
+        else alert('住所が見つかりませんでした。もう少し詳しい住所を入力してください。');
+      });
+    });
+    inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();btn.click();}});
+
+    document.getElementById('lfGps').addEventListener('click',function(){
+      if(!navigator.geolocation){alert('この端末では位置情報が使えません');return;}
+      this.textContent='⏳';
+      var self=this;
+      navigator.geolocation.getCurrentPosition(function(pos){
+        self.textContent='📍';
+        setHomeLocation(pos.coords.latitude,pos.coords.longitude,'現在地');
+        inp.value='現在地';
+      },function(err){
+        self.textContent='📍';
+        alert('位置情報の取得に失敗しました。設定から位置情報を許可してください。');
+      },{enableHighAccuracy:true,timeout:10000});
+    });
+
+    document.querySelectorAll('.lf-radius-btn').forEach(function(b){
+      b.addEventListener('click',function(){
+        document.querySelectorAll('.lf-radius-btn').forEach(function(x){x.classList.remove('active')});
+        b.classList.add('active');
+        radiusKm=parseInt(b.dataset.km);
+        drawRadius();
+      });
+    });
+
+    document.getElementById('lfClearAddr').addEventListener('click',clearHome);
+
+    document.getElementById('lfFullscreen').addEventListener('click',function(){
+      card.classList.add('lf-fs');
+      body.hidden=false;
+      lfOpen=true;
+      document.body.style.overflow='hidden';
+      setTimeout(function(){lfMap.invalidateSize()},100);
+    });
+    document.getElementById('lfFsClose').addEventListener('click',function(){
+      card.classList.remove('lf-fs');
+      document.body.style.overflow='';
+      setTimeout(function(){lfMap.invalidateSize()},100);
+    });
+  }
+
   function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
   function makePopup(r,i){
     var bc=catClass(r.cat);
-    var h='<div class="lf-popup-name">'+esc(r.n)+'</div>';
+    var h='';
+    if(homeLatLng&&r.lat&&r.lon){
+      var km=haversine(homeLatLng[0],homeLatLng[1],r.lat,r.lon);
+      h+=distTag(km);
+    }
+    h+='<div class="lf-popup-name">'+esc(r.n)+'</div>';
     h+='<div class="lf-popup-addr">'+esc(r.a)+'</div>';
     h+='<div class="lf-popup-meta"><span class="lf-popup-badge '+bc+'">'+esc(r.cat)+'</span>';
     if(r.ft&&r.ft!=='その他') h+='<span class="lf-popup-badge other">'+esc(r.ft)+'</span>';
     h+=' '+esc(r.d)+'</div>';
     if(r.o) h+='<div style="font-size:11px;margin-bottom:6px;max-height:60px;overflow:auto">'+esc(r.o)+'</div>';
-    h+='<a href="https://www.google.com/maps/search/'+encodeURIComponent(r.a)+'" target="_blank" rel="noopener" class="lf-popup-btn">Google Map</a>';
+    var gmUrl=homeLatLng?'https://www.google.com/maps/dir/'+homeLatLng[0]+','+homeLatLng[1]+'/'+encodeURIComponent(r.a):'https://www.google.com/maps/search/'+encodeURIComponent(r.a);
+    h+='<a href="'+gmUrl+'" target="_blank" rel="noopener" class="lf-popup-btn">'+(homeLatLng?'経路検索':'Google Map')+'</a>';
     h+='<button class="lf-popup-copy" data-name="'+esc(r.n)+'" data-addr="'+esc(r.a)+'" onclick="var t=this.dataset.name+String.fromCharCode(10)+this.dataset.addr;var b=this;navigator.clipboard&&navigator.clipboard.writeText(t).then(function(){b.textContent=String.fromCharCode(10003)+\' コピー済\';setTimeout(function(){b.textContent=\'施設+住所\'},1500)})">施設+住所</button>';
     return h;
   }
