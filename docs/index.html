@@ -1711,33 +1711,6 @@ function init(){
     d.onclick=()=>{pref=p;city='all';render()};
     pT.appendChild(d);
   });
-  const cityLabel=document.getElementById('cityLabel');
-  const cityEl=document.getElementById('cityTabs');
-  if(pref!=='all'){
-    const cityRe=/^(京都府|大阪府|滋賀県|奈良県|兵庫県|東京都|神奈川県|埼玉県|千葉県|茨城県)(.+?[市区町村郡])/;
-    const cityCounts={};
-    D.forEach(r=>{
-      if(r.p!==pref)return;
-      const m=(r.a||'').replace(/[\s　]+/g,'').match(cityRe);
-      if(m){const c=m[2];cityCounts[c]=(cityCounts[c]||0)+1;}
-    });
-    const cities=Object.keys(cityCounts).sort((a,b)=>cityCounts[b]-cityCounts[a]);
-    if(cities.length>1){
-      cityLabel.hidden=false;cityEl.hidden=false;cityEl.innerHTML='';
-      const allD=document.createElement('div');
-      allD.className='ptab'+(city==='all'?' active':'');
-      allD.innerHTML='全て<span class="cnt">'+D.filter(r=>r.p===pref).length+'</span>';
-      allD.onclick=()=>{city='all';render()};
-      cityEl.appendChild(allD);
-      cities.forEach(c=>{
-        const d2=document.createElement('div');
-        d2.className='ptab'+(city===c?' active':'');
-        d2.innerHTML=c+'<span class="cnt">'+cityCounts[c]+'</span>';
-        d2.onclick=()=>{city=c;render()};
-        cityEl.appendChild(d2);
-      });
-    }else{cityLabel.hidden=true;cityEl.hidden=true;}
-  }else{cityLabel.hidden=true;cityEl.hidden=true;}
   document.getElementById('total').textContent=D.length+'件';
 
   if(currentRegion==='kansai'&&!initDone){
@@ -2233,7 +2206,7 @@ function showMore(){
         '<div class="share-row">'+
           '<button class="share-btn line" data-idx="'+i+'">LINE</button>'+
           '<button class="share-btn sms" data-idx="'+i+'">SMS</button>'+
-          '<button class="share-btn addr-copy" data-idx="'+i+'">施設+住所</button>'+
+          '<button class="share-btn addr-copy" data-idx="'+i+'" style="white-space:nowrap">施設+住所</button>'+
           '<button class="share-btn copy" data-idx="'+i+'">コピー</button>'+
           '<button class="share-btn fav'+(favs.has(r.n+'||'+r.a)?' is-fav':'')+'" data-idx="'+i+'">'+(favs.has(r.n+'||'+r.a)?'★':'☆')+'</button>'+
           '<button class="share-btn fresh" data-idx="'+i+'">新着化</button>'+
@@ -2260,6 +2233,38 @@ function showMore(){
     const remaining=filtered.length-shown;
     moreEl.querySelector('button').textContent='もっと見る（残り'+remaining+'件）';
   }
+  // City chips update
+  var cityLabel=document.getElementById('cityLabel');
+  var cityEl=document.getElementById('cityTabs');
+  if(cityLabel&&cityEl){
+    if(pref!=='all'){
+      var cityRe=/^(京都府|大阪府|滋賀県|奈良県|兵庫県|東京都|神奈川県|埼玉県|千葉県|茨城県)(.+?[市区町村郡])/;
+      var cityCounts={};
+      D.forEach(function(r){
+        if(r.p!==pref)return;
+        var m2=(r.a||'').replace(/[\s　]+/g,'').match(cityRe);
+        if(m2){cityCounts[m2[2]]=(cityCounts[m2[2]]||0)+1;}
+      });
+      var cities=Object.keys(cityCounts).sort(function(a,b){return cityCounts[b]-cityCounts[a]});
+      if(cities.length>1){
+        cityLabel.hidden=false;cityEl.hidden=false;cityEl.innerHTML='';
+        var allC=document.createElement('div');
+        allC.className='ptab'+(city==='all'?' active':'');
+        allC.innerHTML='全て<span class="cnt">'+D.filter(function(r){return r.p===pref}).length+'</span>';
+        allC.onclick=function(){city='all';render()};
+        cityEl.appendChild(allC);
+        cities.forEach(function(c){
+          var d2=document.createElement('div');
+          d2.className='ptab'+(city===c?' active':'');
+          d2.innerHTML=c+'<span class="cnt">'+cityCounts[c]+'</span>';
+          d2.onclick=function(){city=c;render()};
+          cityEl.appendChild(d2);
+        });
+      }else{cityLabel.hidden=true;cityEl.hidden=true;}
+    }else{cityLabel.hidden=true;cityEl.hidden=true;}
+  }
+
+  window._filteredData=filtered;
   if(window._lfUpdateMarkers) window._lfUpdateMarkers();
 }
 
@@ -4954,7 +4959,7 @@ ankenUiSync = function () {
   function updateMarkers(){
     if(!lfMarkers)return;
     lfMarkers.clearLayers();
-    var list=window.filtered||[];
+    var list=window._filteredData||[];
     var count=0;
     for(var i=0;i<list.length;i++){
       var r=list[i];
