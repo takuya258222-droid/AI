@@ -2891,7 +2891,7 @@ applyBtn.addEventListener('click',()=>{
   if(!pendingImport)return;
   const kansaiNew=pendingImport.kansai;
   const kantoNew=pendingImport.kanto;
-  let addedKa=0,addedKt=0;
+  let addedKa=0,addedKt=0,updKa=0;
   if(kansaiNew.length){
     const existing=new Set(D_KANSAI.map(e=>e.n+'||'+e.a+'||'+e.cat));
     for(const e of kansaiNew){
@@ -2899,10 +2899,11 @@ applyBtn.addEventListener('click',()=>{
       if(!existing.has(dk)){delete e._region;e._csv=1;D_KANSAI.push(e);existing.add(dk);addedKa++;}
       else{
         const ex=D_KANSAI.find(x=>x.n+'||'+x.a+'||'+x.cat===dk);
-        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;}
+        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;updKa++;}
       }
     }
   }
+  let updKt=0;
   if(kantoNew.length){
     const existing=new Set(D_KANTO.map(e=>e.n+'||'+e.a+'||'+e.cat));
     for(const e of kantoNew){
@@ -2910,15 +2911,15 @@ applyBtn.addEventListener('click',()=>{
       if(!existing.has(dk)){delete e._region;e._csv=1;D_KANTO.push(e);existing.add(dk);addedKt++;}
       else{
         const ex=D_KANTO.find(x=>x.n+'||'+x.a+'||'+x.cat===dk);
-        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;}
+        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;updKt++;}
       }
     }
   }
   const parts=[];
   if(addedKa)parts.push('関西 +'+addedKa+'件');
   if(addedKt)parts.push('関東 +'+addedKt+'件');
-  const updated=kansaiNew.length+kantoNew.length-addedKa-addedKt;
-  if(updated>0)parts.push(updated+'件更新');
+  const updated=updKa+updKt;
+  if(updated>0)parts.push(updated+'件 日付更新');
   statusEl.textContent='取り込み完了: '+parts.join('・');
   statusEl.className='import-status success';
   applyBtn.classList.remove('show');
@@ -2950,7 +2951,7 @@ window._restoreCSVImports=function(target,region){
       if(!existing.has(dk)){target.push(e);existing.add(dk);count++;}
       else{
         const ex=target.find(x=>x.n+'||'+x.a+'||'+x.cat===dk);
-        if(ex){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;count++;}
+        if(ex&&e.d>=ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;count++;}
       }
     }
     return count;
