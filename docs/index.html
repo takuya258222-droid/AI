@@ -2233,30 +2233,34 @@ function showMore(){
     const remaining=filtered.length-shown;
     moreEl.querySelector('button').textContent='もっと見る（残り'+remaining+'件）';
   }
-  // City chips update
+  // City chips update (use cached index)
   var cityLabel=document.getElementById('cityLabel');
   var cityEl=document.getElementById('cityTabs');
   if(cityLabel&&cityEl){
     if(pref!=='all'){
-      var cityRe=/^(京都府|大阪府|滋賀県|奈良県|兵庫県|東京都|神奈川県|埼玉県|千葉県|茨城県)(.+?[市区町村郡])/;
-      var cityCounts={};
-      D.forEach(function(r){
-        if(r.p!==pref)return;
-        var m2=(r.a||'').replace(/[\s　]+/g,'').match(cityRe);
-        if(m2){cityCounts[m2[2]]=(cityCounts[m2[2]]||0)+1;}
-      });
-      var cities=Object.keys(cityCounts).sort(function(a,b){return cityCounts[b]-cityCounts[a]});
-      if(cities.length>1){
+      if(!window._cityCache)window._cityCache={};
+      if(!window._cityCache[pref]){
+        var cityRe=/^(京都府|大阪府|滋賀県|奈良県|兵庫県|東京都|神奈川県|埼玉県|千葉県|茨城県)(.+?[市区町村郡])/;
+        var cc={},total=0;
+        D.forEach(function(r){
+          if(r.p!==pref)return;total++;
+          var m2=(r.a||'').replace(/[\s　]+/g,'').match(cityRe);
+          if(m2){cc[m2[2]]=(cc[m2[2]]||0)+1;}
+        });
+        window._cityCache[pref]={counts:cc,total:total,keys:Object.keys(cc).sort(function(a,b){return cc[b]-cc[a]})};
+      }
+      var cache=window._cityCache[pref];
+      if(cache.keys.length>1){
         cityLabel.hidden=false;cityEl.hidden=false;cityEl.innerHTML='';
         var allC=document.createElement('div');
         allC.className='ptab'+(city==='all'?' active':'');
-        allC.innerHTML='全て<span class="cnt">'+D.filter(function(r){return r.p===pref}).length+'</span>';
+        allC.innerHTML='全て<span class="cnt">'+cache.total+'</span>';
         allC.onclick=function(){city='all';render()};
         cityEl.appendChild(allC);
-        cities.forEach(function(c){
+        cache.keys.forEach(function(c){
           var d2=document.createElement('div');
           d2.className='ptab'+(city===c?' active':'');
-          d2.innerHTML=c+'<span class="cnt">'+cityCounts[c]+'</span>';
+          d2.innerHTML=c+'<span class="cnt">'+cache.counts[c]+'</span>';
           d2.onclick=function(){city=c;render()};
           cityEl.appendChild(d2);
         });
