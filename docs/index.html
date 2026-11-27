@@ -1339,6 +1339,8 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
   <div class="tabs" id="catTabs"></div>
   <div class="frow-label">府県</div>
   <div class="pref-tabs" id="prefTabs"></div>
+  <div class="frow-label" id="cityLabel" hidden>市区町村</div>
+  <div class="pref-tabs" id="cityTabs" style="margin-top:4px" hidden></div>
   </section>
   <section class="fcard" aria-label="働き方と施設形態">
   <div class="shift-filter" id="shiftFilter">
@@ -1445,7 +1447,7 @@ const KANTO_PREFS=['all','東京都','神奈川県','埼玉県','千葉県','茨
 const KANTO_PREF_LABELS={all:'全エリア','東京都':'東京','神奈川県':'神奈川','埼玉県':'埼玉','千葉県':'千葉','茨城県':'茨城'};
 
 const PAGE=50;
-let filtered=[], shown=0, cat='all', pref='all', query='';
+let filtered=[], shown=0, cat='all', pref='all', city='all', query='';
 let sortAsc=false;
 let dateFrom='', dateTo='';
 let activeShifts=new Set();
@@ -1675,9 +1677,36 @@ function init(){
     const d=document.createElement('div');
     d.className='ptab'+(p===pref?' active':'');
     d.innerHTML=prefLabels[p]+'<span class="cnt">'+cnt+'</span>';
-    d.onclick=()=>{pref=p;render()};
+    d.onclick=()=>{pref=p;city='all';render()};
     pT.appendChild(d);
   });
+  const cityLabel=document.getElementById('cityLabel');
+  const cityEl=document.getElementById('cityTabs');
+  if(pref!=='all'){
+    const cityRe=/^(京都府|大阪府|滋賀県|奈良県|兵庫県|東京都|神奈川県|埼玉県|千葉県|茨城県)(.+?[市区町村郡])/;
+    const cityCounts={};
+    D.forEach(r=>{
+      if(r.p!==pref)return;
+      const m=(r.a||'').replace(/[\s　]+/g,'').match(cityRe);
+      if(m){const c=m[2];cityCounts[c]=(cityCounts[c]||0)+1;}
+    });
+    const cities=Object.keys(cityCounts).sort((a,b)=>cityCounts[b]-cityCounts[a]);
+    if(cities.length>1){
+      cityLabel.hidden=false;cityEl.hidden=false;cityEl.innerHTML='';
+      const allD=document.createElement('div');
+      allD.className='ptab'+(city==='all'?' active':'');
+      allD.innerHTML='全て<span class="cnt">'+D.filter(r=>r.p===pref).length+'</span>';
+      allD.onclick=()=>{city='all';render()};
+      cityEl.appendChild(allD);
+      cities.forEach(c=>{
+        const d2=document.createElement('div');
+        d2.className='ptab'+(city===c?' active':'');
+        d2.innerHTML=c+'<span class="cnt">'+cityCounts[c]+'</span>';
+        d2.onclick=()=>{city=c;render()};
+        cityEl.appendChild(d2);
+      });
+    }else{cityLabel.hidden=true;cityEl.hidden=true;}
+  }else{cityLabel.hidden=true;cityEl.hidden=true;}
   document.getElementById('total').textContent=D.length+'件';
 
   if(currentRegion==='kansai'&&!initDone){
@@ -2036,9 +2065,10 @@ function render(){
     if(!passesCommonFilter(r,terms))continue;
     const matchesCat=(cat==='all'||(cat==='rare'?r.rare:r.cat===cat));
     const matchesPref=(pref==='all'||r.p===pref);
-    if(matchesPref){tabCounts.all++;if(r.rare)tabCounts.rare=(tabCounts.rare||0)+1;if(r.cat in tabCounts)tabCounts[r.cat]++;}
-    if(matchesCat){prefCounts.all++;if(r.p in prefCounts)prefCounts[r.p]++;}
-    if(matchesCat&&matchesPref)filtered.push(r);
+    const matchesCity=(city==='all'||((r.a||'').replace(/[\s　]+/g,'').indexOf(city)>=0));
+    if(matchesPref&&matchesCity){tabCounts.all++;if(r.rare)tabCounts.rare=(tabCounts.rare||0)+1;if(r.cat in tabCounts)tabCounts[r.cat]++;}
+    if(matchesCat&&matchesCity){prefCounts.all++;if(r.p in prefCounts)prefCounts[r.p]++;}
+    if(matchesCat&&matchesPref&&matchesCity)filtered.push(r);
   }
 
   filtered=applyStationFilter(filtered);
@@ -2468,7 +2498,7 @@ document.getElementById('revSearch').addEventListener('click',function(){
   var msg=matched+'件マッチ（スコア順で表示中）';
   if(commuteGeo)msg=matched+'件マッチ（'+cond.distKm+'km以内・スコア順）';
   document.getElementById('revCount').textContent=msg;
-  cat='all';pref='all';query='';activeShifts.clear();activeFT.clear();
+  cat='all';pref='all';city='all';query='';activeShifts.clear();activeFT.clear();
   document.getElementById('q').value='';
   render();
   document.getElementById('revPanel').classList.remove('show');
@@ -2555,7 +2585,7 @@ function selectRegion(region){
   try{localStorage.setItem('anken_region',region);}catch(e){}
   document.getElementById('regionOverlay').classList.add('hidden');
   document.getElementById('regionSwitch').textContent=(region==='kansai'?'関西':'関東')+' ▾';
-  cat='all';pref='all';query='';dateFrom='';dateTo='';
+  cat='all';pref='all';city='all';query='';dateFrom='';dateTo='';
   activeShifts.clear();activeFT.clear();selected.clear();
   distMode=false;userLat=0;userLon=0;sortByDist=true;sortAsc=false;maxDist=0;
   document.getElementById('q').value='';
