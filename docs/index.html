@@ -2899,7 +2899,14 @@ applyBtn.addEventListener('click',()=>{
       if(!existing.has(dk)){delete e._region;e._csv=1;D_KANSAI.push(e);existing.add(dk);addedKa++;}
       else{
         const ex=D_KANSAI.find(x=>x.n+'||'+x.a+'||'+x.cat===dk);
-        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;updKa++;}
+        if(ex&&e.d>ex.d){
+          ex.d=e.d;
+          if(e.o){var cnt=(ex.o?ex.o.split('\n').length:0)+1;ex.o=(ex.o?ex.o+'\n':'')+'('+cnt+') '+e.o.replace(/^\(\d+\)\s*/,'');}
+          if(e.c)ex.c=e.c;
+          for(var si=0;si<e.s.length;si++){if(ex.s.indexOf(e.s[si])<0)ex.s.push(e.s[si]);}
+          ex.t=ex.s.join('・');
+          ex._csv=1;updKa++;
+        }
       }
     }
   }
@@ -2911,7 +2918,14 @@ applyBtn.addEventListener('click',()=>{
       if(!existing.has(dk)){delete e._region;e._csv=1;D_KANTO.push(e);existing.add(dk);addedKt++;}
       else{
         const ex=D_KANTO.find(x=>x.n+'||'+x.a+'||'+x.cat===dk);
-        if(ex&&e.d>ex.d){ex.d=e.d;ex.o=e.o;ex.c=e.c;ex.s=e.s;ex.t=e.t;ex._csv=1;updKt++;}
+        if(ex&&e.d>ex.d){
+          ex.d=e.d;
+          if(e.o){var cnt=(ex.o?ex.o.split('\n').length:0)+1;ex.o=(ex.o?ex.o+'\n':'')+'('+cnt+') '+e.o.replace(/^\(\d+\)\s*/,'');}
+          if(e.c)ex.c=e.c;
+          for(var si=0;si<e.s.length;si++){if(ex.s.indexOf(e.s[si])<0)ex.s.push(e.s[si]);}
+          ex.t=ex.s.join('・');
+          ex._csv=1;updKt++;
+        }
       }
     }
   }
