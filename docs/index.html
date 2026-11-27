@@ -1345,6 +1345,12 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
 </section>
   <section class="fcard" aria-label="日付と並び替え">
   <div class="frow-label">案件日・並び替え</div>
+  <div class="date-quick" id="dateQuick" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+    <button type="button" class="dq-btn" data-days="0" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer">今日</button>
+    <button type="button" class="dq-btn" data-days="3" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer">3日以内</button>
+    <button type="button" class="dq-btn" data-days="7" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer">1週間</button>
+    <button type="button" class="dq-btn" data-days="30" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer">1ヶ月</button>
+  </div>
   <div class="filter-row">
     <div class="date-range">
       <input type="date" id="dateFrom" title="開始日">
@@ -1821,6 +1827,20 @@ function init(){
     dateFrom=''; dateTo='';
     document.getElementById('dateFrom').value='';
     document.getElementById('dateTo').value='';
+    document.querySelectorAll('.dq-btn').forEach(function(b){b.style.background='';b.style.color='';b.style.borderColor='';});
+    render();
+  });
+  document.getElementById('dateQuick').addEventListener('click',function(e){
+    var btn=e.target.closest('.dq-btn');if(!btn)return;
+    var days=parseInt(btn.dataset.days);
+    var now=new Date();
+    var from=new Date(now);from.setDate(from.getDate()-days);
+    var fmt=function(d){return d.getFullYear()+'/'+(''+(d.getMonth()+1)).padStart(2,'0')+'/'+(''+d.getDate()).padStart(2,'0');};
+    var fmtInput=function(d){return d.getFullYear()+'-'+(''+(d.getMonth()+1)).padStart(2,'0')+'-'+(''+d.getDate()).padStart(2,'0');};
+    dateFrom=fmt(from);dateTo=fmt(now);
+    document.getElementById('dateFrom').value=fmtInput(from);
+    document.getElementById('dateTo').value=fmtInput(now);
+    document.querySelectorAll('.dq-btn').forEach(function(b){b.style.background=b===btn?'#2563eb':'';b.style.color=b===btn?'#fff':'';b.style.borderColor=b===btn?'#2563eb':'';});
     render();
   });
   document.getElementById('sortBtn').addEventListener('click',()=>{
