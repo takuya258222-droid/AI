@@ -157,15 +157,6 @@ def main():
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
 
-    # Sync external data_kanto.json if D_KANTO exists in HTML as empty
-    kanto_span = find_block(html, "D_KANTO")
-    if kanto_span:
-        kanto_str = html[kanto_span[0]:kanto_span[1]].strip()
-        if kanto_str == "[]":
-            kanto_json_path = os.path.join(os.path.dirname(html_path), "data_kanto.json")
-            if os.path.exists(kanto_json_path):
-                print(f"D_KANTO is lazy-loaded; {kanto_json_path} unchanged")
-
     print(f"Updated {html_path} (build-version={ver})")
 
 

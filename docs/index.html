@@ -1407,7 +1407,7 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
     <div class="fx-note" style="margin-top:6px">住所を入力すると求職者の位置がピン表示され、距離圏と近い施設が分かります。全画面ボタンで大きく表示できます。</div>
   </div>
 </section>
-<section class="fcard" id="fxMapCard" aria-label="市区町村マップ">
+<section class="fcard" id="fxMapCard" aria-label="市区町村マップ" hidden style="display:none!important">
   <button class="fx-map-head" id="fxMapToggle" type="button" aria-expanded="false">
     <span class="fx-map-title">市区町村マップ（関西）</span>
     <span class="fx-map-headsub" id="fxMapHeadSub"></span>
@@ -5110,6 +5110,18 @@ ankenUiSync = function () {
   });
   ['lfMf','lfMfPanel'].forEach(function(id){var el=document.getElementById(id);
     ['dblclick','mousedown','touchstart','pointerdown','wheel'].forEach(function(ev){el.addEventListener(ev,function(e){e.stopPropagation();},{passive:true});});});
+  // 座標のない案件（新規取り込み分など）は住所の市区町村の中心に仮置きする
+  var approxCache=new WeakMap();
+  function approxLL(r){
+    if(approxCache.has(r))return approxCache.get(r);
+    var a=(r.a||'').replace(/[\s\u3000]+/g,''),res=null;
+    if(a){
+      var kanto=(typeof currentRegion!=='undefined'&&currentRegion==='kanto');
+      var dict=kanto?GEO_KANTO:GEO,keys=kanto?GEO_KANTO_KEYS:GEO_KEYS;
+      for(var i=0;i<keys.length;i++){if(a.indexOf(keys[i])>=0){res=dict[keys[i]];break;}}
+    }
+    approxCache.set(r,res);return res;
+  }
   function updateMarkers(){
     if(!lfMarkers)return;
     syncMapFilters();
@@ -5118,11 +5130,12 @@ ankenUiSync = function () {
     var count=0,batch=[],lats=[],lngs=[];
     for(var i=0;i<list.length;i++){
       var r=list[i];
-      if(!r.lat||!r.lon)continue;
-      var m=L.marker([r.lat,r.lon],{icon:makeIcon(r.cat)});
-      m._rIdx=i;m._r=r;
-      m.bindPopup(function(l){return makePopup(l._r,l._rIdx);},{maxWidth:320,minWidth:220});
-      batch.push(m);lats.push(r.lat);lngs.push(r.lon);
+      var la=r.lat,lo=r.lon,ap=false;
+      if(!la||!lo){var g=approxLL(r);if(!g)continue;la=g[0];lo=g[1];ap=true;}
+      var m=L.marker([la,lo],{icon:makeIcon(r.cat)});
+      m._rIdx=i;m._r=r;m._ap=ap;
+      m.bindPopup(function(l){return makePopup(l._r,l._rIdx,l);},{maxWidth:320,minWidth:220});
+      batch.push(m);lats.push(la);lngs.push(lo);
       count++;
     }
     lfMarkers.addLayers(batch);
@@ -5240,13 +5253,15 @@ ankenUiSync = function () {
 
   function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-  function makePopup(r,i){
+  function makePopup(r,i,mk){
     var bc=catClass(r.cat);
     var h='';
-    if(homeLatLng&&r.lat&&r.lon){
-      var km=haversine(homeLatLng[0],homeLatLng[1],r.lat,r.lon);
+    var ll=mk?mk.getLatLng():null;
+    if(homeLatLng&&ll&&!(mk&&mk._ap)){
+      var km=haversine(homeLatLng[0],homeLatLng[1],ll.lat,ll.lng);
       h+=distTag(km);
     }
+    if(mk&&mk._ap) h+='<div style="font-size:11px;color:#b45309;margin-bottom:4px">※おおよその位置（市区町村の中心）</div>';
     h+='<div class="lf-popup-name">'+esc(r.n)+'</div>';
     h+='<div class="lf-popup-addr">'+esc(r.a)+'</div>';
     h+='<div class="lf-popup-meta"><span class="lf-popup-badge '+bc+'">'+esc(r.cat)+'</span>';
