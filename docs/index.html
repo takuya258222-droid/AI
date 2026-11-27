@@ -1148,6 +1148,23 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
 #leafletMap.leaflet-container { background: #e8edf2 }
 .lf-tile-note { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 1000; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.96); color: #1f2937; font-size: 13px; line-height: 1.5; box-shadow: 0 2px 10px rgba(0,0,0,.25) }
 .lf-tile-note a { color: #2563eb; font-weight: 700 }
+.lf-mf { position: absolute; top: 58px; right: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 6px; align-items: stretch }
+.lf-mf-btn { min-height: 38px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: rgba(255,255,255,.96); color: #1f2937; font-size: 13px; font-weight: 700; font-family: inherit; box-shadow: 0 1px 5px rgba(0,0,0,.2); cursor: pointer }
+.lf-mf-btn.active { background: #1e3a8a; border-color: #1e3a8a; color: #fff }
+.lf-mf-btn.kaigo.active { background: #0ea5e9; border-color: #0ea5e9 }
+.lf-mf-btn.kango.active { background: #ef4444; border-color: #ef4444 }
+.lf-mf-btn.lf-mf-ft.on { border-color: #2563eb; color: #2563eb }
+#leafletCard.lf-fs .leaflet-top.leaflet-left { top: 48px }
+.lf-mf { width: 86px }
+.lf-mf-btn { padding: 0 4px; white-space: nowrap }
+.lf-mf-panel-head span, .lf-mf-panel-head button { white-space: nowrap }
+.lf-mf-panel { position: absolute; top: 58px; right: 104px; left: 10px; z-index: 1001; max-width: 300px; margin-left: auto; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.98); color: #1f2937; box-shadow: 0 4px 16px rgba(0,0,0,.3) }
+.lf-mf-panel-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 13px; font-weight: 700 }
+.lf-mf-panel-head span { flex: 1 }
+.lf-mf-panel-head button { min-height: 32px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1f2937; font-size: 12px; font-family: inherit }
+.lf-mf-chips { display: flex; flex-wrap: wrap; gap: 6px }
+.lf-mf-chip { min-height: 36px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1f2937; font-size: 13px; font-family: inherit; cursor: pointer }
+.lf-mf-chip.active { background: #2563eb; border-color: #2563eb; color: #fff }
 .leaflet-map-wrap .lf-fullscreen-btn { background: #fff; color: #1f2937 }
 .lf-toolbar { margin-bottom: 8px; position: relative; z-index: 500 }
 .lf-addr-row { display: flex; gap: 6px; align-items: center }
@@ -1376,6 +1393,16 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
       <div id="leafletMap"></div>
       <button id="lfFullscreen" class="lf-fullscreen-btn" title="全画面表示">⛶</button>
       <button class="lf-fs-close" id="lfFsClose" title="全画面終了">✕</button>
+      <div class="lf-mf" id="lfMf">
+        <button type="button" class="lf-mf-btn" data-cat="all">全て</button>
+        <button type="button" class="lf-mf-btn kaigo" data-cat="介護">介護</button>
+        <button type="button" class="lf-mf-btn kango" data-cat="看護">看護</button>
+        <button type="button" class="lf-mf-btn lf-mf-ft" id="lfMfFt" aria-expanded="false">施設形態</button>
+      </div>
+      <div class="lf-mf-panel" id="lfMfPanel" hidden>
+        <div class="lf-mf-panel-head"><span>施設形態</span><button type="button" id="lfMfClear">クリア</button><button type="button" id="lfMfClose">閉じる</button></div>
+        <div class="lf-mf-chips"><button type="button" class="lf-mf-chip" data-ft="特養">特養</button><button type="button" class="lf-mf-chip" data-ft="老健">老健</button><button type="button" class="lf-mf-chip" data-ft="有料">有料</button><button type="button" class="lf-mf-chip" data-ft="GH">GH</button><button type="button" class="lf-mf-chip" data-ft="サ高住">サ高住</button><button type="button" class="lf-mf-chip" data-ft="デイ">デイ</button><button type="button" class="lf-mf-chip" data-ft="ショート">ショート</button><button type="button" class="lf-mf-chip" data-ft="訪問介護">訪問介護</button><button type="button" class="lf-mf-chip" data-ft="訪問看護">訪問看護</button><button type="button" class="lf-mf-chip" data-ft="病院">病院</button><button type="button" class="lf-mf-chip" data-ft="小多機">小多機</button><button type="button" class="lf-mf-chip" data-ft="居宅">居宅</button><button type="button" class="lf-mf-chip" data-ft="ケアハウス">ケアハウス</button><button type="button" class="lf-mf-chip" data-ft="その他">その他</button></div>
+      </div>
     </div>
     <div class="fx-note" style="margin-top:6px">住所を入力すると求職者の位置がピン表示され、距離圏と近い施設が分かります。全画面ボタンで大きく表示できます。</div>
   </div>
@@ -5016,7 +5043,7 @@ ankenUiSync = function () {
       tNg++;if(e.tile)e.tile.style.visibility='hidden';
       if(!tOk&&tNg>=3&&!tNote){
         tNote=document.createElement('div');tNote.className='lf-tile-note';
-        tNote.innerHTML='この画面では地図の背景を表示できません（ピンは使えます）。<a href="https://takuya258222-droid.github.io/ai/" target="_blank" rel="noopener">背景つきの地図はWeb版で開く</a>';
+        tNote.innerHTML='この画面では地図の背景を表示できません（ピンは使えます）。<a href="https://takuya258222-droid.github.io/AI/" target="_blank" rel="noopener">背景つきの地図はWeb版で開く</a>';
         document.querySelector('.leaflet-map-wrap').appendChild(tNote);
       }
     });
@@ -5062,8 +5089,30 @@ ankenUiSync = function () {
 
   window._lfUpdateMarkers=function(){ if(lfOpen&&lfMap) updateMarkers(); };
 
+  var mfPanel=document.getElementById('lfMfPanel'),mfFt=document.getElementById('lfMfFt');
+  function syncMapFilters(){
+    document.querySelectorAll('.lf-mf-btn[data-cat]').forEach(function(b){b.classList.toggle('active',b.dataset.cat===cat);});
+    document.querySelectorAll('.lf-mf-chip').forEach(function(b){b.classList.toggle('active',activeFT.has(b.dataset.ft));});
+    mfFt.textContent=activeFT.size?'施設形態 '+activeFT.size:'施設形態';
+    mfFt.classList.toggle('on',activeFT.size>0);
+  }
+  document.querySelectorAll('.lf-mf-btn[data-cat]').forEach(function(b){
+    b.addEventListener('click',function(e){e.stopPropagation();cat=b.dataset.cat;render();syncMapFilters();});
+  });
+  mfFt.addEventListener('click',function(e){e.stopPropagation();mfPanel.hidden=!mfPanel.hidden;mfFt.setAttribute('aria-expanded',!mfPanel.hidden);});
+  document.getElementById('lfMfClose').addEventListener('click',function(){mfPanel.hidden=true;mfFt.setAttribute('aria-expanded','false');});
+  document.getElementById('lfMfClear').addEventListener('click',function(){
+    document.querySelectorAll('.ft-btn.active').forEach(function(x){x.click();});syncMapFilters();
+  });
+  document.querySelectorAll('.lf-mf-chip').forEach(function(b){
+    b.addEventListener('click',function(e){e.stopPropagation();
+      var main=document.querySelector('.ft-btn[data-ft="'+b.dataset.ft+'"]');if(main)main.click();syncMapFilters();});
+  });
+  ['lfMf','lfMfPanel'].forEach(function(id){var el=document.getElementById(id);
+    ['dblclick','mousedown','touchstart','pointerdown','wheel'].forEach(function(ev){el.addEventListener(ev,function(e){e.stopPropagation();},{passive:true});});});
   function updateMarkers(){
     if(!lfMarkers)return;
+    syncMapFilters();
     lfMarkers.clearLayers();
     var list=window._filteredData||[];
     var count=0,batch=[],lats=[],lngs=[];
