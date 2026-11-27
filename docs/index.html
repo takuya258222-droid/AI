@@ -1148,6 +1148,18 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
 #leafletMap.leaflet-container { background: #e8edf2 }
 .lf-tile-note { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 1000; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.96); color: #1f2937; font-size: 13px; line-height: 1.5; box-shadow: 0 2px 10px rgba(0,0,0,.25) }
 .lf-tile-note a { color: #2563eb; font-weight: 700 }
+.lf-near { margin-top: 8px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface, #fff) }
+.lf-near-head { padding: 10px 12px; font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--border) }
+.lf-near-list { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch }
+#leafletCard.lf-fs .lf-near-list { max-height: 30vh }
+.lf-near-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 8px 12px; border: none; border-bottom: 1px solid var(--border); background: none; color: var(--fg); text-align: left; font-family: inherit; cursor: pointer }
+.lf-near-row:last-child { border-bottom: none }
+.lf-near-row:active { background: rgba(37,99,235,.08) }
+.lf-near-km { flex: 0 0 62px; text-align: center; padding: 4px 0; border-radius: 8px; font-size: 13px; font-weight: 700 }
+.lf-near-main { flex: 1; min-width: 0 }
+.lf-near-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.lf-near-sub { font-size: 12px; color: var(--fg2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.lf-near-empty { padding: 14px 12px; font-size: 13px; color: var(--fg2) }
 .lf-mf { position: absolute; top: 58px; right: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 6px; align-items: stretch }
 .lf-mf-btn { min-height: 38px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: rgba(255,255,255,.96); color: #1f2937; font-size: 13px; font-weight: 700; font-family: inherit; box-shadow: 0 1px 5px rgba(0,0,0,.2); cursor: pointer }
 .lf-mf-btn.active { background: #1e3a8a; border-color: #1e3a8a; color: #fff }
@@ -1415,6 +1427,7 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
         <div class="lf-mf-chips"><button type="button" class="lf-mf-chip" data-ft="特養">特養</button><button type="button" class="lf-mf-chip" data-ft="老健">老健</button><button type="button" class="lf-mf-chip" data-ft="有料">有料</button><button type="button" class="lf-mf-chip" data-ft="GH">GH</button><button type="button" class="lf-mf-chip" data-ft="サ高住">サ高住</button><button type="button" class="lf-mf-chip" data-ft="デイ">デイ</button><button type="button" class="lf-mf-chip" data-ft="ショート">ショート</button><button type="button" class="lf-mf-chip" data-ft="訪問介護">訪問介護</button><button type="button" class="lf-mf-chip" data-ft="訪問看護">訪問看護</button><button type="button" class="lf-mf-chip" data-ft="病院">病院</button><button type="button" class="lf-mf-chip" data-ft="小多機">小多機</button><button type="button" class="lf-mf-chip" data-ft="居宅">居宅</button><button type="button" class="lf-mf-chip" data-ft="ケアハウス">ケアハウス</button><button type="button" class="lf-mf-chip" data-ft="その他">その他</button></div>
       </div>
     </div>
+    <div class="lf-near" id="lfNear" hidden></div>
     <div class="fx-note" style="margin-top:6px">住所を入力すると求職者の位置がピン表示され、距離圏と近い施設が分かります。全画面ボタンで大きく表示できます。</div>
   </div>
 </section>
@@ -5147,6 +5160,44 @@ ankenUiSync = function () {
     }
     approxCache.set(r,res);return res;
   }
+  var curMarkers=[],nearEl=document.getElementById('lfNear');
+  function renderNear(){
+    if(!homeLatLng){nearEl.hidden=true;nearEl.innerHTML='';return;}
+    var rows=[],apN=0;
+    for(var i=0;i<curMarkers.length;i++){
+      var ll=curMarkers[i].getLatLng();
+      var km=haversine(homeLatLng[0],homeLatLng[1],ll.lat,ll.lng);
+      if(radiusKm>0&&km>radiusKm)continue;
+      if(curMarkers[i]._ap){apN++;continue;}
+      rows.push([km,i]);
+    }
+    rows.sort(function(a,b){return a[0]-b[0];});
+    var total=rows.length,MAX=radiusKm>0?150:30;
+    if(rows.length>MAX)rows=rows.slice(0,MAX);
+    var title=radiusKm>0?radiusKm+'km以内の案件 '+total+'件（近い順）':'近い順 上位'+rows.length+'件';
+    if(radiusKm>0&&total>MAX)title+=' ／ 上位'+MAX+'件を表示';
+    var s='<div class="lf-near-head">'+title+'</div>';
+    if(!rows.length){s+='<div class="lf-near-empty">この距離圏に該当する案件はありません。距離圏を広げるか、絞り込みを解除してください。</div>';}
+    else{
+      s+='<div class="lf-near-list">';
+      rows.forEach(function(x){
+        var m=curMarkers[x[1]],r=m._r,km=x[0];
+        var cls=km<=3?'lf-dist-near':km<=10?'lf-dist-mid':'lf-dist-far';
+        var sub=[r.cat,(r.ft&&r.ft!=='その他')?r.ft:'',r.d].filter(Boolean).join('・');
+        s+='<button type="button" class="lf-near-row" data-i="'+x[1]+'"><span class="lf-near-km '+cls+'">'+(m._ap?'約':'')+km.toFixed(1)+'km</span>'
+          +'<span class="lf-near-main"><div class="lf-near-name">'+esc(r.n)+'</div><div class="lf-near-sub">'+esc(sub)+'</div></span></button>';
+      });
+      s+='</div>';
+    }
+    if(radiusKm>0&&apN)s+='<div class="lf-near-empty" style="border-top:1px solid var(--border)">ほかに、正確な位置が未登録の案件がこの付近に'+apN+'件あります（地図上の「おおよその位置」のピン）。</div>';
+    nearEl.innerHTML=s;nearEl.hidden=false;
+  }
+  nearEl.addEventListener('click',function(e){
+    var b=e.target.closest('.lf-near-row');if(!b||!lfMarkers)return;
+    var m=curMarkers[parseInt(b.dataset.i,10)];if(!m)return;
+    document.querySelector('.leaflet-map-wrap').scrollIntoView({block:'nearest',behavior:'smooth'});
+    lfMarkers.zoomToShowLayer(m,function(){m.openPopup();});
+  });
   function updateMarkers(){
     if(!lfMarkers)return;
     syncMapFilters();
@@ -5164,6 +5215,7 @@ ankenUiSync = function () {
       count++;
     }
     lfMarkers.addLayers(batch);
+    curMarkers=batch;renderNear();
     subEl.textContent=count+'件表示中';
     if(homeLatLng){
       subEl.textContent+=' / 求職者ピン有';
@@ -5256,7 +5308,7 @@ ankenUiSync = function () {
         document.querySelectorAll('.lf-radius-btn').forEach(function(x){x.classList.remove('active')});
         b.classList.add('active');
         radiusKm=parseInt(b.dataset.km);
-        drawRadius();
+        drawRadius();renderNear();
       });
     });
 
