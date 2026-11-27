@@ -1163,8 +1163,8 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
 .lf-mf-panel-head span { flex: 1 }
 .lf-mf-panel-head button { min-height: 32px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1f2937; font-size: 12px; font-family: inherit }
 .lf-mf-chips { display: flex; flex-wrap: wrap; gap: 6px }
-.lf-mf-chip { min-height: 36px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1f2937; font-size: 13px; font-family: inherit; cursor: pointer }
-.lf-mf-chip.active { background: #2563eb; border-color: #2563eb; color: #fff }
+.lf-mf-chip, .lf-mf-dchip { min-height: 36px; padding: 0 10px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #fff; color: #1f2937; font-size: 13px; font-family: inherit; cursor: pointer }
+.lf-mf-chip.active, .lf-mf-dchip.active { background: #2563eb; border-color: #2563eb; color: #fff }
 .leaflet-map-wrap .lf-fullscreen-btn { background: #fff; color: #1f2937 }
 .lf-toolbar { margin-bottom: 8px; position: relative; z-index: 500 }
 .lf-addr-row { display: flex; gap: 6px; align-items: center }
@@ -1398,6 +1398,17 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
         <button type="button" class="lf-mf-btn kaigo" data-cat="介護">介護</button>
         <button type="button" class="lf-mf-btn kango" data-cat="看護">看護</button>
         <button type="button" class="lf-mf-btn lf-mf-ft" id="lfMfFt" aria-expanded="false">施設形態</button>
+        <button type="button" class="lf-mf-btn lf-mf-ft" id="lfMfDate" aria-expanded="false">期間</button>
+      </div>
+      <div class="lf-mf-panel" id="lfMfDatePanel" hidden>
+        <div class="lf-mf-panel-head"><span>案件獲得期間</span><button type="button" id="lfMfDateClose">閉じる</button></div>
+        <div class="lf-mf-chips">
+          <button type="button" class="lf-mf-dchip" data-days="">全期間</button>
+          <button type="button" class="lf-mf-dchip" data-days="3">3日以内</button>
+          <button type="button" class="lf-mf-dchip" data-days="7">1週間以内</button>
+          <button type="button" class="lf-mf-dchip" data-days="30">1ヶ月以内</button>
+          <button type="button" class="lf-mf-dchip" data-days="90">3ヶ月以内</button>
+        </div>
       </div>
       <div class="lf-mf-panel" id="lfMfPanel" hidden>
         <div class="lf-mf-panel-head"><span>施設形態</span><button type="button" id="lfMfClear">クリア</button><button type="button" id="lfMfClose">閉じる</button></div>
@@ -1428,6 +1439,7 @@ mark { background: rgba(201,162,39,0.30); color: inherit; border-radius: 2px; pa
     <button type="button" class="dq-btn" data-days="3" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer">3日以内</button>
     <button type="button" class="dq-btn" data-days="7" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer">1週間</button>
     <button type="button" class="dq-btn" data-days="30" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer">1ヶ月</button>
+    <button type="button" class="dq-btn" data-days="90" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface,#fff);color:var(--fg);font-size:12px;font-weight:700;cursor:pointer">3ヶ月</button>
   </div>
   <div class="filter-row">
     <div class="date-range">
@@ -5095,11 +5107,24 @@ ankenUiSync = function () {
     document.querySelectorAll('.lf-mf-chip').forEach(function(b){b.classList.toggle('active',activeFT.has(b.dataset.ft));});
     mfFt.textContent=activeFT.size?'施設形態 '+activeFT.size:'施設形態';
     mfFt.classList.toggle('on',activeFT.size>0);
+    var dq=null;document.querySelectorAll('.dq-btn').forEach(function(x){if(x.style.background)dq=x;});
+    var days=dq?dq.dataset.days:'',custom=!dq&&(dateFrom||dateTo);
+    document.querySelectorAll('.lf-mf-dchip').forEach(function(x){x.classList.toggle('active',!custom&&x.dataset.days===days);});
+    mfDate.textContent=custom?'期間 指定中':dq?dq.textContent:'期間';
+    mfDate.classList.toggle('on',!!(dq||custom));
   }
+  var mfDate=document.getElementById('lfMfDate'),mfDatePanel=document.getElementById('lfMfDatePanel');
+  mfDate.addEventListener('click',function(e){e.stopPropagation();mfPanel.hidden=true;mfDatePanel.hidden=!mfDatePanel.hidden;});
+  document.getElementById('lfMfDateClose').addEventListener('click',function(){mfDatePanel.hidden=true;});
+  document.querySelectorAll('.lf-mf-dchip').forEach(function(b){
+    b.addEventListener('click',function(e){e.stopPropagation();
+      var t=b.dataset.days?document.querySelector('.dq-btn[data-days="'+b.dataset.days+'"]'):document.getElementById('dateClear');
+      if(t)t.click();syncMapFilters();mfDatePanel.hidden=true;});
+  });
   document.querySelectorAll('.lf-mf-btn[data-cat]').forEach(function(b){
     b.addEventListener('click',function(e){e.stopPropagation();cat=b.dataset.cat;render();syncMapFilters();});
   });
-  mfFt.addEventListener('click',function(e){e.stopPropagation();mfPanel.hidden=!mfPanel.hidden;mfFt.setAttribute('aria-expanded',!mfPanel.hidden);});
+  mfFt.addEventListener('click',function(e){e.stopPropagation();mfDatePanel.hidden=true;mfPanel.hidden=!mfPanel.hidden;mfFt.setAttribute('aria-expanded',!mfPanel.hidden);});
   document.getElementById('lfMfClose').addEventListener('click',function(){mfPanel.hidden=true;mfFt.setAttribute('aria-expanded','false');});
   document.getElementById('lfMfClear').addEventListener('click',function(){
     document.querySelectorAll('.ft-btn.active').forEach(function(x){x.click();});syncMapFilters();
@@ -5108,7 +5133,7 @@ ankenUiSync = function () {
     b.addEventListener('click',function(e){e.stopPropagation();
       var main=document.querySelector('.ft-btn[data-ft="'+b.dataset.ft+'"]');if(main)main.click();syncMapFilters();});
   });
-  ['lfMf','lfMfPanel'].forEach(function(id){var el=document.getElementById(id);
+  ['lfMf','lfMfPanel','lfMfDatePanel'].forEach(function(id){var el=document.getElementById(id);
     ['dblclick','mousedown','touchstart','pointerdown','wheel'].forEach(function(ev){el.addEventListener(ev,function(e){e.stopPropagation();},{passive:true});});});
   // 座標のない案件（新規取り込み分など）は住所の市区町村の中心に仮置きする
   var approxCache=new WeakMap();
